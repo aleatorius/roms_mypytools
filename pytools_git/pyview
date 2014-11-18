@@ -1,0 +1,152 @@
+#!/usr/bin/env python 
+##!/home/ntnu/mitya/virt_env/virt1/bin/python -B
+## Dmitry Shcherbin, 2014.07.01
+import numpy as np
+from numpy import *
+from netCDF4 import *
+import sys, re, glob, os
+import numpy.ma as ma
+import argparse
+import os.path
+import datetime
+from datetime import date, time
+import pprint
+from pprint import *
+parser = argparse.ArgumentParser(description='pyview 0.1')
+
+parser.add_argument('-i', help='input file', dest='inf', action="store")
+parser.add_argument('-v', help='variable', dest ='variable', action="store")
+parser.add_argument('-f', help='time format', dest='time_f', action="store", default="s")
+parser.add_argument('--time_rec', help='time rec', dest ='time_rec', action="store", default="ocean_time")
+parser.add_argument('--time', help='time counter', dest ='time', action="store", type=int, default=0)
+parser.add_argument('--vert', help='vertical coordinate number', dest ='vert', action="store", type=int, default=34)
+parser.add_argument('--xzoom', help='zoom along x(?) direction, range is defined in percents', dest ='xzoom', action="store",  default='0:100')
+parser.add_argument('--yzoom', help='zoom along y(?) direction, range is defined in percents', dest ='yzoom', action="store",  default='0:100')
+parser.add_argument('--var_min', help='minimum value of variable', dest ='var_min', action="store", type=float, default = None)
+parser.add_argument('--var_max', help='minimum value of variable', dest ='var_max', action="store", type=float, default = None)
+args = parser.parse_args()
+
+if not (args.inf):
+    parser.error('please give a file name')
+if not os.path.isfile(args.inf):
+     print 'file does not exists'
+     parser.error('please give a file name')
+     
+
+if ':' not in list(args.xzoom):
+     parser.error('provide zoom in i:k format!')
+else:
+     for i in [0,1]:
+          if 0 <= float(args.xzoom.split(':')[i])<= 100:
+               pass
+          else:
+               parser.error('whole range 0:100')
+
+if ':' not in list(args.yzoom):
+     parser.error('provide zoom in i:k format!')
+else:
+     for i in [0,1]:
+          if 0 <= float(args.yzoom.split(':')[i])<= 100:
+               pass
+          else:
+               parser.error('wrong xzoom, whole range 0:100')
+
+
+if float(args.yzoom.split(':')[0])>= float(args.yzoom.split(':')[1]):
+     parser.error('in zoom range i:k i<k')
+if float(args.xzoom.split(':')[0])>= float(args.xzoom.split(':')[1]):
+     parser.error('in zoom range i:k i<k')
+
+def print_list(data):
+    col_width = max(len(i) for i in data) + 2  # padding
+    count = 0
+    a= []
+    for i in data:
+        count = count +1
+        if count < 6:
+            a.append(i)
+        else:
+            print "".join(j.ljust(col_width) for j in a)
+            a = []
+            count = 0
+
+
+def date_time(ot):
+     ref = date(1970,01,01)
+     ref_time = time(0,0,0)
+     refer= datetime.datetime.combine(ref, ref_time)
+     if args.time_f =='s':
+         return (refer + datetime.timedelta(float(ot)/(3600*24))).strftime("%Y-%m-%d %H:%M:%S")
+     else:
+         return (refer + datetime.timedelta(float(ot))).strftime("%Y-%m-%d %H:%M:%S")
+
+
+if not (args.variable):
+    f = Dataset(args.inf)
+    print_list(f.variables.keys())
+    f.close()
+    sys.exit()
+
+
+def unpack(ina):
+     outa = zeros(ina.shape)
+     outa[:] = ina[:]
+     return outa
+
+def extract(inf, variable, time, vert):
+     f = Dataset(inf)
+     if str(variable) in f.variables.keys():
+          print '\n In the file', inf
+          print 'variable', variable, 'exists'
+          ncvar = unpack(f.variables[variable][time,:])
+          print 'and its dimension equals:', size(ncvar.shape)+1
+          if size(ncvar.shape) == 3:
+               ncvar = unpack(f.variables[variable][time,vert,:])
+          if size(ncvar.shape) == 1:
+               print 'possibly there is no time dimension, so it is shown as it is'
+               ncvar = unpack(f.variables[variable])
+          else:
+               pass
+          print 'the grid dimensions of requested variable:', ncvar.shape
+
+     else:
+          print 'provided variable doesnt exists, choose from the list:\n'
+          print_list(f.variables.keys())          
+          f.close()
+          sys.exit()
+     ot = unpack(f.variables[args.time_rec])
+     f.close()
+     return ncvar, ot
+
+
+meta = extract(args.inf, args.variable, args.time, args.vert)
+ncvar = meta[0]
+
+fillval = 1e+36
+import matplotlib.pyplot as plt
+from pylab import *
+from matplotlib import colors, cm
+
+
+mx = ma.masked_outside(ncvar, -1e+36,1e+36)
+cmap=plt.cm.spectral
+fig1 = plt.figure(1)
+p=plt.pcolormesh(mx[int(float(args.yzoom.split(':')[0])*mx.shape[0]/100.):int(float(args.yzoom.split(':')[1])*mx.shape[0]/100.), int(float(args.xzoom.split(':')[0])*mx.shape[1]/100.):int(float(args.xzoom.split(':')[1])*mx.shape[1]/100.)], cmap=cmap);plt.colorbar()     
+
+if args.var_min or args.var_max:
+#     print args.var_min, args.var_min
+     if args.var_min and args.var_max:
+          if args.var_min < args.var_max:
+               p.set_clim(float(args.var_min), float(args.var_max))
+          else:
+               print 'incorrect var_min shoud be less than var_max, defaults then'
+               pass
+     else:
+          p.set_clim(args.var_min, args.var_max)
+else:
+     pass
+
+
+plt.axis('tight')
+plt.title(args.variable+' '+ date_time(meta[1][args.time]))
+plt.show()
