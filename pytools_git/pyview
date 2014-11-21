@@ -114,7 +114,38 @@ def extract(inf, variable, time, vert):
           print_list(f.variables.keys())          
           f.close()
           sys.exit()
-     ot = unpack(f.variables[args.time_rec])
+     times = (args.time_rec, "time", "clim_time", "bry_time")
+     result = False
+     for t in times:
+         try:
+             print t
+             ot = unpack(f.variables[str(t)])  
+             result = True
+             break
+         except KeyError:
+             #e = sys.exc_info()[0]
+             print "key error, trying another name for time record"
+             continue
+     print result
+     if result == False:
+         print "there is no time var with names", times
+         exit()
+     else:
+         pass
+         
+     
+         
+     #else:
+      #   ot = unpack(f.variables["time"]) 
+#     except:
+#         print "try time"
+#     else:
+#         ot = unpack(f.variables["time"])
+#     except IOError:
+#         print "cannot identify time var name"
+#         print "these were tried:", args.time_rec, "time", "clim_time"
+#         exit()
+
      f.close()
      return ncvar, ot
 

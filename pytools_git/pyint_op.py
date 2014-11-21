@@ -26,7 +26,7 @@ parser.add_argument('-f', help='time format', dest='time_f', action="store", def
 parser.add_argument('--contourf', help='colormesh or contourf', dest='contourf',choices=("yes","no"), action="store", default="no")
 parser.add_argument('--res', help='resolution, fraction of minimum distance between layers', dest='res', action="store", default=2)
 parser.add_argument('--extras', help='s-layers', dest='extras',choices=('yes', 'no'), action="store", default="no")
-parser.add_argument('--graphics', help='graphics', choices=('yes', 'no'), dest='graphics', action="store", default="no")
+parser.add_argument('--graphics', help='graphics', choices=('yes', 'no'), dest='graphics', action="store", default="yes")
 parser.add_argument('--interpolate', help='vertical interpolation, off by default', choices=('yes', 'no'), dest='interpolate', action="store", default="no")
 parser.add_argument('--time_rec', help='time rec', dest ='time_rec', action="store", default="ocean_time")
 parser.add_argument('--time', help='time counter', dest ='time', action="store", type=int, default=0)

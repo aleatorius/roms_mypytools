@@ -23,32 +23,40 @@ args = parser.parse_args()
 #a = sys.argv
 #if len(a) != 3: print 'not a correct input'; print __doc__; sys.exit()
 his = args.input
-print his
-#val = sys.argv[1]
-#num = sys.argv[2]
-#if str(val) not in ('s','d'): print 'not a string s (for seconds) or d (days)'; print __doc__; sys.exit()
-#try: float(num)
-#except ValueError: print 'not a number'; print __doc__; sys.exit()
 ref = date(1970,01,01)
-#if str(val)=='d':
-#    out = (ref + datetime.timedelta(float(num))).isoformat()
-#if str(val)=='s':
-
-
 f = Dataset(his)
-#print '\n Dimensions: \n\n', f.dimensions.keys()
-#print '\n Variables: \n\n', f.variables.keys()
+times = (args.time, "time", "clim_time", "bry_time")
+result = False
+for t in times:
+    try:
+        #a = np.asarray(f.variables[str(t)]) 
+        #print a
+        a = f.variables[str(t)][:]
+        result = True
+        break
+    except KeyError:
+             #e = sys.exc_info()[0]
+        continue
 
-print args.time
+if result == False:
+    print "there is no time var with names", times
+    f.close()
+    exit()
+else:
+    print "name of time var: ", t
+    pass
+f.close()         
+  
 
-ot = f.variables[args.time]
-a = zeros(ot.shape)
-a[:] = ot[:]
-f.close()
 ref_time = time(0,0,0)
 refer= datetime.datetime.combine(ref, ref_time)
+#print np.asarray(a)
+print  len(a), str(int(a[0])), str(int(a[-1]))
+# i put 86400 as an number which exceeds dates since 1970 for sure, but it may give wrong results if your reference is weird!
 
-print len(a), str(int(a[0])), str(int(a[-1]))
-print (refer + datetime.timedelta(float(a[0])/(3600*24))).strftime("%Y-%m-%d %H:%M:%S"), (refer + datetime.timedelta(float(a[-1])/(3600*24))).strftime("%Y-%m-%d %H:%M:%S")
+if int(a[0])> 86400:
+    print (refer + datetime.timedelta(float(a[0])/(3600*24))).strftime("%Y-%m-%d %H:%M:%S"), (refer + datetime.timedelta(float(a[-1])/(3600*24))).strftime("%Y-%m-%d %H:%M:%S")
+else:
+    print (refer + datetime.timedelta(float(a[0]))).strftime("%Y-%m-%d %H:%M:%S"), (refer + datetime.timedelta(float(a[-1]))).strftime("%Y-%m-%d %H:%M:%S")
 #out = (ref + datetime.timedelta(float(a[0])/(3600*24))).isoformat(),  (ref + datetime.timedelta(float(a[-1])/(3600*24))).isoformat()
 #print 'with respect to a reference date ', str(ref), '\na ocean_his dates are:              ', str(out)

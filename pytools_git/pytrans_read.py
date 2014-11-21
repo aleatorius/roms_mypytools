@@ -102,60 +102,55 @@ def unpack(ina):
     return outa
 
 def extract_lat_lon(inf):
-    f = Dataset(inf)
+    f = inf
     lat = unpack(f.variables["lat_rho"])
     lon = unpack(f.variables["lon_rho"])
-    f.close()
     return lat, lon
 
 def extract_vert(inf, inv):
-     f = Dataset(inf)
+     f = inf
      if str(inv) in f.variables.keys():
-          print '\n In the file', inf
-          print 'variable', inv, 'exists'
-          ncvar = unpack(f.variables[inv])
-          print 'the grid dimensions of requested variable:', ncvar.shape
+         print 'variable', inv, 'exists'
+         ncvar = unpack(f.variables[inv])
+         print 'the grid dimensions of requested variable:', ncvar.shape
 
      else:
-          print 'provided variable doesnt exists, choose from the list:\n'
-          print_list(f.variables.keys())          
-          f.close()
-          sys.exit()
-     f.close()
+         print 'provided variable doesnt exists, choose from the list:\n'
+         print_list(f.variables.keys())          
+         f.close()
+         sys.exit()
      return ncvar
 
 
 def extract(inf, variable, time, vert):
-     f = Dataset(inf)
+     f = inf
      if str(variable) in f.variables.keys():
-          print '\n In the file', inf
-          print 'variable', variable, 'exists'
-          ncvar = unpack(f.variables[variable][time,:])
-          print 'and its dimension equals:', size(ncvar.shape)+1
-          if size(ncvar.shape) == 3:
-               ncvar = unpack(f.variables[variable][time,vert,:])
-          if size(ncvar.shape) == 1:
-               print 'possibly there is no time dimension, so it is shown as it is'
-               ncvar = unpack(f.variables[variable])
-          else:
-               pass
-          print 'the grid dimensions of requested variable:', ncvar.shape
+         print 'variable', variable, 'exists'
+         ncvar = unpack(f.variables[variable][time,:])
+         print 'and its dimension equals:', size(ncvar.shape)+1
+         if size(ncvar.shape) == 3:
+             ncvar = unpack(f.variables[variable][time,vert,:])
+         if size(ncvar.shape) == 1:
+             print 'possibly there is no time dimension, so it is shown as it is'
+             ncvar = unpack(f.variables[variable])
+         else:
+             pass
+         print 'the grid dimensions of requested variable:', ncvar.shape
 
      else:
-          print 'provided variable doesnt exists, choose from the list:\n'
-          print_list(f.variables.keys())          
-          f.close()
-          sys.exit()
+         print 'provided variable doesnt exists, choose from the list:\n'
+         print_list(f.variables.keys())          
+         f.close()
+         sys.exit()
      ot = unpack(f.variables[args.time_rec])
-     f.close()
      return ncvar, ot
 
 def extract_vertical(inf, variable, time):
-     f = Dataset(inf)
+     f = inf
      if str(variable) in f.variables.keys():
-          print '\n In the file', inf
-          print 'variable', variable, 'exists'
-          ncvar = unpack(f.variables[variable][time,:])
+         #print '\n In the file', inf
+         print 'variable', variable, 'exists'
+         ncvar = unpack(f.variables[variable][time,:])
          # print 'and its dimension equals:', size(ncvar.shape)+1
          # if size(ncvar.shape) == 3:
          #      ncvar = unpack(f.variables[variable][time,vert,:])
@@ -167,12 +162,11 @@ def extract_vertical(inf, variable, time):
          # print 'the grid dimensions of requested variable:', ncvar.shape
 
      else:
-          print 'provided variable doesnt exists, choose from the list:\n'
-          print_list(f.variables.keys())          
-          f.close()
-          sys.exit()
+         print 'provided variable doesnt exists, choose from the list:\n'
+         print_list(f.variables.keys())          
+         f.close()
+         sys.exit()
      ot = unpack(f.variables[args.time_rec])
-     f.close()
      return ncvar, ot
 # Bresenham's line algorithm (somebody' python implementation from the web)
 def get_line(x1, y1, x2, y2):
@@ -210,32 +204,6 @@ def get_line(x1, y1, x2, y2):
     return points
 
 
-#extract data from netcdf
-meta = extract(args.inf, args.variable, args.time, args.vert)
-meta_trans = extract_vertical(args.inf, args.variable, args.time)[0]
-
-ze =  extract(args.inf, "zeta", args.time, args.vert)[0]
-mask_rho =  extract(args.inf, "mask_rho", args.time, args.vert)[0]
-zeta = ma.masked_outside(ze, -1e+36,1e+36)
-Cs_r = extract_vert(args.inf, 'Cs_r')
-s_rho = extract_vert(args.inf, 's_rho')
-Cs_w = extract_vert(args.inf, 'Cs_w')
-s_w = extract_vert(args.inf, 's_w')
-Vtransform = extract_vert(args.inf, 'Vtransform')
-Vstretching = extract_vert(args.inf, 'Vstretching')
-N = len(s_rho)
-Np = len(s_w)
-print Np, "Np", N, "N"
-#Tcline = extract_vert(args.inf, 'Tcline')
-#theta_s = extract_vert(args.inf, 'theta_s')
-#theta_b = extract_vert(args.inf, 'theta_b')
-hc= extract_vert(args.inf, 'hc')
-#print Vtransform, Vstretching, N,Tcline, hc, theta_s, theta_b
-h_m =  extract(args.inf, "h", args.time, args.vert)[0]
-h = ma.masked_outside(h_m, -1e+36,1e+36)
-
-
-
 
 
 #def z_r(index,zeta,h,s_rho, hc, Cs_r,N):
@@ -257,8 +225,37 @@ def z_w(index,zeta,h,s_w, hc, Cs_w,Np):
         z_w[k]  = zeta[index] + (zeta[index] + h[index])*z0
     return z_w
 
+
+#extract data from netcdf
+f= Dataset(args.inf)
+
+meta = extract(f, args.variable, args.time, args.vert)
+meta_trans = extract_vertical(f, args.variable, args.time)[0]
+
+ze =  extract(f, "zeta", args.time, args.vert)[0]
+mask_rho =  extract(f, "mask_rho", args.time, args.vert)[0]
+zeta = ma.masked_outside(ze, -1e+36,1e+36)
+Cs_r = extract_vert(f, 'Cs_r')
+s_rho = extract_vert(f, 's_rho')
+Cs_w = extract_vert(f, 'Cs_w')
+s_w = extract_vert(f, 's_w')
+#Vtransform = extract_vert(args.inf, 'Vtransform')
+#Vstretching = extract_vert(args.inf, 'Vstretching')
+N = len(s_rho)
+Np = len(s_w)
+print Np, "Np", N, "N"
+#Tcline = extract_vert(args.inf, 'Tcline')
+#theta_s = extract_vert(args.inf, 'theta_s')
+#theta_b = extract_vert(args.inf, 'theta_b')
+hc= extract_vert(f, 'hc')
+#print Vtransform, Vstretching, N,Tcline, hc, theta_s, theta_b
+h_m =  extract(f, "h", args.time, args.vert)[0]
+h = ma.masked_outside(h_m, -1e+36,1e+36)
+lat, lon = extract_lat_lon(f)
+f.close()
+
+
 ncvar = meta[0]
-lat, lon = extract_lat_lon(args.inf)
 fillval = 1e+36
 import matplotlib.pyplot as plt
 from pylab import *
@@ -509,7 +506,7 @@ yl=[]
 for i in line_points:
     xl.append(i[1])
     yl.append(i[0])
-plt.plot(yl, xl,'bo', markersize=1)
+plt.plot(yl, xl,'co', markersize=2)
 
 #format axes
 if args.var_min or args.var_max:
