@@ -19,7 +19,8 @@ parser.add_argument('-is', help='segments vertices', dest='segments', action="st
 parser.add_argument('-v', help='variable', dest ='variable', action="store")
 parser.add_argument('-f', help='time format', dest='time_f', action="store", default="s")
 parser.add_argument('--contourf', help='colormesh or contourf', dest='contourf',choices=("yes","no"), action="store", default="no")
-parser.add_argument('--res', help='resolution, fraction of minimum distance between layers', dest='res', action="store", default=2)
+parser.add_argument('--npinter', help='numpy interpolation', dest='npinter',choices=("yes","no"), action="store", default="yes")
+parser.add_argument('--res', help='resolution, fraction of minimum distance between layers', dest='res', action="store", type=float, default=2)
 parser.add_argument('--extras', help='s-layers', dest='extras',choices=('yes', 'no'), action="store", default="no")
 parser.add_argument('--interpolate', help='vertical interpolation, off by default', choices=('yes', 'no'), dest='interpolate', action="store", default="no")
 parser.add_argument('--time_rec', help='time rec', dest ='time_rec', action="store", default="ocean_time")
@@ -206,14 +207,14 @@ def get_line(x1, y1, x2, y2):
 
 
 
-#def z_r(index,zeta,h,s_rho, hc, Cs_r,N):
-#    z_r = zeros((int(N)))
-#    for k in range(N):
+def z_r(index,zeta,h,s_rho, hc, Cs_r,N):
+    z_r = zeros((int(N)))
+    for k in range(N):
         #print k
         #print h[index]
-#        z0 = (hc * s_rho[k] + h[index]*Cs_r[k])/(hc + h[index])
-#        z_r[k]  = zeta[index] + (zeta[index] + h[index])*z0
-#    return z_r
+        z0 = (hc * s_rho[k] + h[index]*Cs_r[k])/(hc + h[index])
+        z_r[k]  = zeta[index] + (zeta[index] + h[index])*z0
+    return z_r
 
 
 def z_w(index,zeta,h,s_w, hc, Cs_w,Np):
@@ -273,13 +274,15 @@ file = open(args.segments,"r")
 column,lat_vert,lon_vert,vert,absx,lx,ly =[],[],[],[],[],[],[]
 dy= []
 z_dict = {}
+zr_dict= {}
 h_dict = {}
 h_dict["hlevel"]=[]
 var_dict = {}
-for i in range(Np):
-    z_dict[str(i)]=[]
-for i in range(Np-1):
-    var_dict[str(i)]=[]
+#for i in range(Np):
+#    z_dict[str(i)]=[]
+#for i in range(Np-1):
+#    var_dict[str(i)]=[]
+#    zr_dict[str(i)]=[]
 line_points=[]
 counter= 0
 xs,ys=[],[]
@@ -304,16 +307,10 @@ if len(xs) > 1:
                 lx.append(j[0])
                 ly.append(j[1])                    
                 dz=[]
-                for i in range(Np):
-                    z_dict[str(i)].append(z_w((j[1],j[0]),zeta, h, s_w,hc, Cs_w,Np)[i])
-                           
-                for i in range(Np-1):
-                    var_dict[str(i)].append(mx_trans[i,j[1],j[0]])
-                      
-                for i in range(1, Np):
-                    dz.append(z_dict[str(i)][-1]-z_dict[str(i-1)][-1])
-                        
-                dy.append(min(dz))
+                z_dict[str(len(line_points)-1)]= z_w((j[1],j[0]),zeta, h, s_w,hc, Cs_w,Np)
+                var_dict[str(len(line_points)-1)] = mx_trans[:,j[1],j[0]]
+                zr_dict[str(len(line_points)-1)] =z_r((j[1],j[0]),zeta, h, s_rho,hc, Cs_r,N)
+                dy.append(min(np.diff(z_dict[str(len(line_points)-1)])))
                 h_dict["hlevel"].append(-h[j[1],j[0]])
                 column.append(z_w((j[1],j[0]),zeta, h, s_w,hc, Cs_w,Np)[Np-1]+h[j[1],j[0]])
                 lat_vert.append(lat[j[1],j[0]])
@@ -349,77 +346,29 @@ else:
     yincr=0.1
     dep=100
 
-#yincr= min(dy)[0]/res
-                #dep =int(round(res*abs(max(column))/min(dy)))
-#dep =int(round(abs(max(column))/yincr))
+#creating mesh - linear interpolaton vertically
+mesh_np = np.zeros((dep+2,counter+2))
+mesh_np[:]=1e+37
 
-mesh = np.zeros((dep+2,counter+2))
-mesh[:]=1e+37
-
-if args.interpolate=="no":
+if args.npinter=="yes":
     for i in range(len(line_points)):
         if mask_rho[ly[i],lx[i]]==1:
-            counter=1
-            ycounter=0
-            mesh[ycounter,i]=var_dict[str(Np-1-counter)][i]
-            y= z_dict[str(Np-1)][i]
-            while y > z_dict[str(0)][i]:
-                y = y - yincr
-                ycounter= ycounter + 1
-                if (y+yincr/2.) > z_dict[str(Np-1-counter)][i]:
-                    mesh[ycounter,i]=var_dict[str(Np-1-counter)][i]
-                else:
-                    counter = counter+1
-                    if counter < Np:
-                        mesh[ycounter,i]=var_dict[str(Np-1-counter)][i]
-                    else:
-                      pass
-            else:
-                pass
+            counter=0
+            xp = zr_dict[str(i)]
+            yp = var_dict[str(i)]
+#            print z_dict[str(i)][0]
+            xvals = np.linspace(z_dict[str(i)][0], 0, abs(z_dict[str(i)][0])/yincr)
+            yinterp = np.interp(xvals, np.asarray(xp), np.asarray(yp))
+            var_int = yinterp[::-1] 
+            for l in var_int:
+                mesh_np[counter,i]=l
+                counter= counter+1
+
+
+        else:
+            pass
 else:
-    yend=[]                    
-    for i in range(len(line_points)):
-        if mask_rho[ly[i],lx[i]]==1:
-            print line_points[i]
-            counter=1
-            ycounter=0
-            y= z_dict[str(Np-1)][i]
-            mesh[ycounter,i]=var_dict[str(Np-1-counter)][i]
-            tmp = []
-            while y > z_dict[str(0)][i] and counter < Np:
-                y = y - yincr
-                ycounter= ycounter + 1
-                tmp.append(ycounter)        
-                if (y+yincr/2) > z_dict[str(Np-1-counter)][i]:
-                    pass
-                else:
-                    #print len(tmp)
-                    if len(tmp)>0:
-                        if counter==Np-1:
-                            dv = float(var_dict[str(Np-2-counter+1)][i]-var_dict[str(Np-2-counter+2)][i])/len(tmp)
-                        else:
-                            dv = float(var_dict[str(Np-2-counter)][i]-var_dict[str(Np-2-counter+1)][i])/len(tmp)
-                        scounter=0
-                        for yt in tmp:
-                            scounter= scounter + 1
-                            mesh[yt,i]=var_dict[str(Np-2-counter+1)][i]+dv*(scounter)
-                        tmp = []
-                        counter = counter+1        
-                    else:
-                        pass
-                if len(tmp)>0:
-                    if counter==Np-1:
-                        dv = float(var_dict[str(Np-2-counter+1)][i]-var_dict[str(Np-2-counter+2)][i])/len(tmp)
-                    else:
-                        dv = float(var_dict[str(Np-2-counter)][i]-var_dict[str(Np-2-counter+1)][i])/len(tmp)
-                    scounter=0
-                    for yt in tmp:
-                        scounter= scounter + 1
-                        mesh[yt,i]=var_dict[str(Np-2-counter+1)][i]+dv*(scounter)
-            yend.append(y-h_dict["hlevel"][i])
-    else:
-        pass
-    print min(yend), "min yend", max(yend)  #, min(h_dict["hlevel"])
+    pass
     
 
 
@@ -456,7 +405,7 @@ if args.extras=="yes":
 else:
     pass
 
-fig_mesh, ax_mesh = plt.subplots()
+
 y_tick = []
 y_label = []
 x_tick = []
@@ -470,34 +419,33 @@ if len(vert) > 1:
         x_label.append('('+str(int(round(v[1])))+','+str(int(round(v[2])))+')')
 else:
     pass
-                #for x in absx:
-                #    x_tick.append(x)
+
                 
 for v in np.arange(0,grid_depth, step):
     y_tick.append(v/yincr)
     y_label.append(str(-int(v)))
-    
-ax_mesh.set_yticks(y_tick)
-ax_mesh.set_yticklabels(y_label)
 
-ax_mesh.set_xticks(x_tick)
-ax_mesh.set_xticklabels(x_label)
-ax_mesh.xaxis.grid(True)
-ax_mesh.yaxis.grid(True)
+fig_mesh_np,ax_mesh_np = plt.subplots()
+ax_mesh_np.set_yticks(y_tick)
+ax_mesh_np.set_yticklabels(y_label)
+
+ax_mesh_np.set_xticks(x_tick)
+ax_mesh_np.set_xticklabels(x_label)
+ax_mesh_np.xaxis.grid(True)
+ax_mesh_np.yaxis.grid(True)
 plt.xticks(rotation=30)
-ax_mesh = plt.gca()
-ax_mesh.invert_yaxis()
-mesh_masked = ma.masked_outside(mesh, -1e+36,1e+36)
+ax_mesh_np = plt.gca()
+ax_mesh_np.invert_yaxis()
+mesh_masked = ma.masked_outside(mesh_np, -1e+36,1e+36)
 if args.contourf=="yes":
     pm=plt.contourf(mesh_masked, cmap=cmap);plt.colorbar()           
 else:
+    #pm=plt.pcolormesh(mesh_masked, cmap=cmap);plt.colorbar()
     pm=plt.pcolormesh(mesh_masked, cmap=cmap);plt.colorbar()
 plt.title(args.variable+' '+ date_time(meta[1][args.time]))
-                #nullify xs.ys
 
 
-
-#main plot
+#line plot
 fig_map, ax_map = plt.subplots()
 p=plt.imshow(mx[int(float(args.yzoom.split(':')[0])*mx.shape[0]/100.):int(float(args.yzoom.split(':')[1])*mx.shape[0]/100.), int(float(args.xzoom.split(':')[0])*mx.shape[1]/100.):int(float(args.xzoom.split(':')[1])*mx.shape[1]/100.)], cmap=cmap, origin='lower', interpolation='nearest');plt.colorbar()     
 #p=plt.pcolormesh(mx[int(float(args.yzoom.split(':')[0])*mx.shape[0]/100.):int(float(args.yzoom.split(':')[1])*mx.shape[0]/100.), int(float(args.xzoom.split(':')[0])*mx.shape[1]/100.):int(float(args.xzoom.split(':')[1])*mx.shape[1]/100.)], cmap=cmap);plt.colorbar()     
@@ -529,6 +477,73 @@ plt.show()
 
                 
                 
+               
+                
+#old code - before pythonification
+#if args.interpolate=="no":
+#    for i in range(len(line_points)):
+#        if mask_rho[ly[i],lx[i]]==1:
+#            counter=1
+#            ycounter=0
+#            mesh[ycounter,i]=var_dict[str(Np-1-counter)][i]
+#            y= z_dict[str(Np-1)][i]
+#            while y > z_dict[str(0)][i]:
+#                y = y - yincr
+#                ycounter= ycounter + 1
+#                if (y+yincr/2.) > z_dict[str(Np-1-counter)][i]:
+#                    mesh[ycounter,i]=var_dict[str(Np-1-counter)][i]
+#                else:
+#                    counter = counter+1
+#                    if counter < Np:
+#                        mesh[ycounter,i]=var_dict[str(Np-1-counter)][i]
+#                    else:
+#                      pass
+#            else:
+#                pass
+#else:
+#    yend=[]                    
+#    for i in range(len(line_points)):
+#        if mask_rho[ly[i],lx[i]]==1:
+#            print line_points[i]
+#            counter=1
+#            ycounter=0
+#            y= z_dict[str(Np-1)][i]
+#            mesh[ycounter,i]=var_dict[str(Np-1-counter)][i]
+#            tmp = []
+#            while y > z_dict[str(0)][i] and counter < Np:
+#                y = y - yincr
+#                ycounter= ycounter + 1
+#                tmp.append(ycounter)        
+#                if (y+yincr/2) > z_dict[str(Np-1-counter)][i]:
+#                    pass
+#                else:
+#                    #print len(tmp)
+#                    if len(tmp)>0:
+#                        if counter==Np-1:
+#                            dv = float(var_dict[str(Np-2-counter+1)][i]-var_dict[str(Np-2-counter+2)][i])/len(tmp)
+#                        else:
+#                            dv = float(var_dict[str(Np-2-counter)][i]-var_dict[str(Np-2-counter+1)][i])/len(tmp)
+#                        scounter=0
+#                        for yt in tmp:
+#                            scounter= scounter + 1
+#                            mesh[yt,i]=var_dict[str(Np-2-counter+1)][i]+dv*(scounter)
+#                        tmp = []
+#                        counter = counter+1        
+#                    else:
+#                        pass
+#                if len(tmp)>0:
+#                    if counter==Np-1:
+#                        dv = float(var_dict[str(Np-2-counter+1)][i]-var_dict[str(Np-2-counter+2)][i])/len(tmp)
+#                    else:
+#                        dv = float(var_dict[str(Np-2-counter)][i]-var_dict[str(Np-2-counter+1)][i])/len(tmp)
+#                    scounter=0
+#                    for yt in tmp:
+#                        scounter= scounter + 1
+#                        mesh[yt,i]=var_dict[str(Np-2-counter+1)][i]+dv*(scounter)
+#            yend.append(y-h_dict["hlevel"][i])
+#    else:
+#        pass
+#    print min(yend), "min yend", max(yend)  #, min(h_dict["hlevel"])
 
                 
 
