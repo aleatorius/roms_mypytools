@@ -194,14 +194,14 @@ def get_line(x1, y1, x2, y2):
         points.reverse()
     return points
 
-#def z_r(index,zeta,h,s_rho, hc, Cs_r,N):
-#    z_r = zeros((int(N)))
-#    for k in range(N):
+def z_r(index,zeta,h,s_rho, hc, Cs_r,N):
+    z_r = zeros((int(N)))
+    for k in range(N):
         #print k
         #print h[index]
-#        z0 = (hc * s_rho[k] + h[index]*Cs_r[k])/(hc + h[index])
-#        z_r[k]  = zeta[index] + (zeta[index] + h[index])*z0
-#    return z_r
+        z0 = (hc * s_rho[k] + h[index]*Cs_r[k])/(hc + h[index])
+        z_r[k]  = zeta[index] + (zeta[index] + h[index])*z0
+    return z_r
 
 
 def z_w(index,zeta,h,s_w, hc, Cs_w,Np):
@@ -283,7 +283,7 @@ plt.axis('tight')
 #event handler
 
 class LineBuilder:
-    def __init__(self, line,mx_trans, h,zeta, s_w,hc, Cs_w,Np,mask_rho):
+    def __init__(self, line,mx_trans, h,zeta, s_w,hc, Cs_w,Np,mask_rho, s_rho, Cs_r,N):
         self.line = line
         self.mx_trans = mx_trans
         self.h = h
@@ -295,6 +295,9 @@ class LineBuilder:
         self.xs = list(line.get_xdata())
         self.ys = list(line.get_ydata())
         self.mask_rho = mask_rho
+        self.s_rho = s_rho
+        self.Cs_r = Cs_r
+        self.N = N
         self.cid = line.figure.canvas.mpl_connect('button_press_event', self)
  
 
@@ -313,11 +316,12 @@ class LineBuilder:
                 column,lat_vert,lon_vert,vert,absx,lx,ly =[],[],[],[],[],[],[]
                 dy= []
                 z_dict = {}
+                zr_dict = {}
                 var_dict = {}
-                for i in range(self.Np):
-                    z_dict[str(i)]=[]
-                for i in range(self.Np-1):
-                    var_dict[str(i)]=[]
+                #for i in range(self.Np):
+                #    z_dict[str(i)]=[]
+                #for i in range(self.Np-1):
+                #    var_dict[str(i)]=[]
                 line_points=[]
                 counter= 0
                 for i in range(0,len(self.xs)-1):
@@ -332,16 +336,11 @@ class LineBuilder:
                             lx.append(j[0])
                             ly.append(j[1])                    
                             dz=[]
-                            for i in range(self.Np):
-                                z_dict[str(i)].append(z_w((j[1],j[0]),self.zeta, self.h, self.s_w,self.hc, self.Cs_w,self.Np)[i])
-                           
-                            for i in range(self.Np-1):
-                                var_dict[str(i)].append(mx_trans[i,j[1],j[0]])
-                      
-                            for i in range(1, self.Np):
-                                dz.append(z_dict[str(i)][-1]-z_dict[str(i-1)][-1])
-                        
-                            dy.append(min(dz))
+                            #for i in range(self.Np):
+                            z_dict[str(len(line_points)-1)]= z_w((j[1],j[0]),zeta, h, s_w,hc, Cs_w,Np)
+                            var_dict[str(len(line_points)-1)] = mx_trans[:,j[1],j[0]]
+                            zr_dict[str(len(line_points)-1)] =z_r((j[1],j[0]),zeta, h, s_rho,hc, Cs_r,N)
+                            dy.append(min(np.diff(z_dict[str(len(line_points)-1)])))
                             column.append(z_w((j[1],j[0]),self.zeta, self.h, self.s_w,self.hc, self.Cs_w,self.Np)[self.Np-1]+self.h[j[1],j[0]])
                             lat_vert.append(lat[j[1],j[0]])
                             lon_vert.append(lon[j[1],j[0]])
@@ -373,12 +372,12 @@ class LineBuilder:
                     column = np.asarray(column)
                     column = column[~numpy.isnan(column)]
                     
-                    dep =int(round(abs(max(column))/yincr))
+                    dep =int(abs(max(column))/yincr)
                 else:
                     yincr=0.1
                     dep=100
 
-                mesh = np.zeros((dep+1,counter+2))
+                mesh = np.zeros((dep+3,counter+2))
                 mesh[:]=1e+37
                 out_file = open('segments', "w")
                 if len(vert)==len(self.xs):
@@ -392,27 +391,24 @@ class LineBuilder:
                 #mesh writing    
                 for i in range(len(line_points)):
                     if self.mask_rho[ly[i],lx[i]]==1:
-                        counter=1
-                        ycounter=0
-                        mesh[ycounter,i]=var_dict[str(Np-1-counter)][i]
-                        y= z_dict[str(Np-1)][i]
-                        while y > z_dict[str(0)][i]:
-                            y = y - yincr
-                            ycounter= ycounter + 1
-                            if (y+yincr/2.) > z_dict[str(Np-1-counter)][i]:
-                                mesh[ycounter,i]=var_dict[str(Np-1-counter)][i]
-                            else:
-                                counter = counter+1
-                                if counter < Np:
-                                    mesh[ycounter,i]=var_dict[str(Np-1-counter)][i]
-                                else:
-                                    pass
+                        counter=0
+                        xp = zr_dict[str(i)]
+                        yp = var_dict[str(i)]
+            #            print z_dict[str(i)][0]
+                        xvals = np.linspace(z_dict[str(i)][0], 0, int(abs(z_dict[str(i)][0])/yincr))
+                        yinterp = np.interp(xvals, np.asarray(xp), np.asarray(yp))
+                        var_int = yinterp[::-1] 
+                        for l in var_int:
+                            mesh[counter,i]=l
+                            counter= counter+1
+
+
                     else:
                         pass
 
                 #graphics
                 if args.extras=="yes":
-                    fig_line, ax_line = plt.subplots()
+                    #fig_line, ax_line = plt.subplots()
                     x_tick=[]
                     x_label=[]
                     if len(vert) > 1:
@@ -422,13 +418,13 @@ class LineBuilder:
                     else:
                         pass
                     plt.xticks(rotation=30)
-                    ax_line.set_xticks(x_tick)
-                    ax_line.set_xticklabels(x_label)
-                    ax_line.xaxis.grid(True)
-                    ax_line.yaxis.grid(True)
-                    for i in range(Np-1):
-                        plt.plot(absx,var_dict[str(i)], color="b")
-                    plt.title(args.variable+' '+ date_time(meta[1][args.time]))
+                    #ax_line.set_xticks(x_tick)
+                    #ax_line.set_xticklabels(x_label)
+                    #ax_line.xaxis.grid(True)
+                    #ax_line.yaxis.grid(True)
+                    #for i in range(Np-1):
+                    #    plt.plot(absx,var_dict[str(i)], color="b")
+                    #plt.title(args.variable+' '+ date_time(meta[1][args.time]))
 
 
                     fig_h, ax_h= plt.subplots()
@@ -436,10 +432,14 @@ class LineBuilder:
                     ax_h.set_xticklabels(x_label)
                     ax_h.xaxis.grid(True)
                     ax_h.yaxis.grid(True)
-                    ax_h.axis([min(absx)-(max(absx)-min(absx))/20., max(absx)+(max(absx)-min(absx))/20., min(z_dict[str(0)]),0])
-                    for i in range(self.Np):
-                        plt.plot(absx,z_dict[str(i)], color="r")
-                    plt.title("s-layers")    
+                    ax_h.axis([min(absx)-(max(absx)-min(absx))/20., max(absx)+(max(absx)-min(absx))/20., -int(max(column))-int(max(column))/10.,0])
+                    
+                    for k in range(self.Np):
+                        sigma_level = []
+                        for l in range(len(line_points)):
+                            sigma_level.append(z_dict[str(l)][k])
+                        plt.plot(absx,sigma_level, color="r")
+                    plt.title("sigma-layers")    
                 else:
                     pass
 
@@ -508,7 +508,7 @@ ax.set_title('click to build line segments')
 
 
 line, = ax.plot([], [])  # empty line 
-linebuilder = LineBuilder(line,mx_trans,h,zeta, s_w,hc, Cs_w,Np,mask_rho)
+linebuilder = LineBuilder(line,mx_trans,h,zeta, s_w,hc, Cs_w,Np,mask_rho, s_rho, Cs_r, N)
 
 plt.title(args.variable+' '+ date_time(meta[1][args.time]))
 plt.show()

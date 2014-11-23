@@ -341,13 +341,13 @@ if len(dy)>0:
                 #dep =int(round(res*abs(max(column))/min(dy)))                                                                                                                                                   
     column = np.asarray(column)
     column = column[~numpy.isnan(column)]
-    dep =int(round(abs(max(column))/yincr))
+    dep =int(abs(max(column))/yincr)
 else:
     yincr=0.1
     dep=100
 
 #creating mesh - linear interpolaton vertically
-mesh_np = np.zeros((dep+2,counter+2))
+mesh_np = np.zeros((dep+3,counter+2))
 mesh_np[:]=1e+37
 
 if args.npinter=="yes":
@@ -357,7 +357,7 @@ if args.npinter=="yes":
             xp = zr_dict[str(i)]
             yp = var_dict[str(i)]
 #            print z_dict[str(i)][0]
-            xvals = np.linspace(z_dict[str(i)][0], 0, abs(z_dict[str(i)][0])/yincr)
+            xvals = np.linspace(z_dict[str(i)][0], 0, int(abs(z_dict[str(i)][0])/yincr))
             yinterp = np.interp(xvals, np.asarray(xp), np.asarray(yp))
             var_int = yinterp[::-1] 
             for l in var_int:
@@ -374,7 +374,8 @@ else:
 
 
 if args.extras=="yes":
-    fig_line, ax_line = plt.subplots()
+   # fig_line, ax_line = plt.subplots()
+    fig_h, ax_h= plt.subplots()
     x_tick=[]
     x_label=[]
     if len(vert) > 1:
@@ -383,25 +384,29 @@ if args.extras=="yes":
             x_label.append('('+str(int(round(v[1])))+','+str(int(round(v[2])))+')')
     else:
         pass
+    
+    #ax_line.set_xticks(x_tick)
+    #ax_line.set_xticklabels(x_label)
+    #ax_line.xaxis.grid(True)
+    #ax_line.yaxis.grid(True)
+    #for i in range(Np-1):
+    #    plt.plot(absx,var_dict[str(i)], color="b")
+    #plt.title(args.variable+' '+ date_time(meta[1][args.time]))
+
+
+
     plt.xticks(rotation=30)
-    ax_line.set_xticks(x_tick)
-    ax_line.set_xticklabels(x_label)
-    ax_line.xaxis.grid(True)
-    ax_line.yaxis.grid(True)
-    for i in range(Np-1):
-        plt.plot(absx,var_dict[str(i)], color="b")
-    plt.title(args.variable+' '+ date_time(meta[1][args.time]))
-
-
-    fig_h, ax_h= plt.subplots()
     ax_h.set_xticks(x_tick)
     ax_h.set_xticklabels(x_label)
     ax_h.xaxis.grid(True)
     ax_h.yaxis.grid(True)
-    ax_h.axis([min(absx)-(max(absx)-min(absx))/20., max(absx)+(max(absx)-min(absx))/20., min(z_dict[str(0)]),0])
-    for i in range(Np):
-        plt.plot(absx,z_dict[str(i)], color="r")
-    plt.title("s-layers")    
+    ax_h.axis([min(absx)-(max(absx)-min(absx))/20., max(absx)+(max(absx)-min(absx))/20., -int(max(column)),0])
+    for k in range(Np):
+        sigma_level = []
+        for l in range(len(line_points)):
+            sigma_level.append(z_dict[str(l)][k])
+        plt.plot(absx,sigma_level, color="r")
+    plt.title("sigma-layers")    
 else:
     pass
 
