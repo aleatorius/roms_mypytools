@@ -204,27 +204,33 @@ def get_line(x1, y1, x2, y2):
         points.reverse()
     return points
 
-
-
-
-def z_r(index,zeta,h,s_rho, hc, Cs_r,N):
+#taken from here: Trond Kristiansen https://github.com/trondkr/romstools/tree/master/VolumeFlux
+def z_r(index,zeta,h,s_rho, hc, Cs_r,N, Vtransform):
     z_r = zeros((int(N)))
-    for k in range(N):
-        #print k
-        #print h[index]
-        z0 = (hc * s_rho[k] + h[index]*Cs_r[k])/(hc + h[index])
-        z_r[k]  = zeta[index] + (zeta[index] + h[index])*z0
+    if Vtransform == 2 or Vtransform == 4:
+        for k in range(N):
+            z0 = (hc * s_rho[k] + h[index]*Cs_r[k])/(hc + h[index])
+            z_r[k]  = zeta[index] + (zeta[index] + h[index])*z0
+    elif Vtransform == 1:
+        for k in range(N):
+            z0 = hc * s_rho[k] + (h[index] - hc) * Cs_r[k]
+            z_r[k] = z0 + zeta[index] * (1.0 + z0/h[index])
+        
     return z_r
 
 
-def z_w(index,zeta,h,s_w, hc, Cs_w,Np):
+def z_w(index,zeta,h,s_w, hc, Cs_w,Np, Vtransform):
     z_w = zeros((int(Np)))
-    for k in range(Np):
-        #print k
-        #print h[index]
-        z0 = (hc * s_w[k] + h[index]*Cs_w[k])/(hc + h[index])
-        z_w[k]  = zeta[index] + (zeta[index] + h[index])*z0
+    if Vtransform == 2 or Vtransform == 4:
+        for k in range(Np):
+            z0 = (hc * s_w[k] + h[index]*Cs_w[k])/(hc + h[index])
+            z_w[k]  = zeta[index] + (zeta[index] + h[index])*z0
+    elif Vtransform == 1:
+        for k in range(Np):
+            z0 = hc * s_w[k] + (h[index] - hc) * Cs_w[k]
+            z_w[k] = z0 + zeta[index] * (1.0 + z0/h[index])
     return z_w
+
 
 
 #extract data from netcdf
@@ -240,7 +246,7 @@ Cs_r = extract_vert(f, 'Cs_r')
 s_rho = extract_vert(f, 's_rho')
 Cs_w = extract_vert(f, 'Cs_w')
 s_w = extract_vert(f, 's_w')
-#Vtransform = extract_vert(args.inf, 'Vtransform')
+Vtransform = extract_vert(f, 'Vtransform')
 #Vstretching = extract_vert(args.inf, 'Vstretching')
 N = len(s_rho)
 Np = len(s_w)
@@ -306,11 +312,11 @@ if len(xs) > 1:
                 lx.append(j[0])
                 ly.append(j[1])                    
                 dz=[]
-                z_dict[str(len(line_points)-1)]= z_w((j[1],j[0]),zeta, h, s_w,hc, Cs_w,Np)
+                z_dict[str(len(line_points)-1)]= z_w((j[1],j[0]),zeta, h, s_w,hc, Cs_w,Np, Vtransform)
                 var_dict[str(len(line_points)-1)] = mx_trans[:,j[1],j[0]]
-                zr_dict[str(len(line_points)-1)] =z_r((j[1],j[0]),zeta, h, s_rho,hc, Cs_r,N)
+                zr_dict[str(len(line_points)-1)] =z_r((j[1],j[0]),zeta, h, s_rho,hc, Cs_r,N,Vtransform)
                 dy.append(min(np.diff(z_dict[str(len(line_points)-1)])))
-                column.append(z_w((j[1],j[0]),zeta, h, s_w,hc, Cs_w,Np)[Np-1]+h[j[1],j[0]])
+                column.append(z_w((j[1],j[0]),zeta, h, s_w,hc, Cs_w,Np, Vtransform)[Np-1]+h[j[1],j[0]])
                 lat_vert.append(lat[j[1],j[0]])
                 lon_vert.append(lon[j[1],j[0]])
                 

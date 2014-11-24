@@ -193,24 +193,31 @@ def get_line(x1, y1, x2, y2):
     if rev:
         points.reverse()
     return points
-
-def z_r(index,zeta,h,s_rho, hc, Cs_r,N):
+# taken from here: Trond Kristiansen https://github.com/trondkr/romstools/tree/master/VolumeFlux
+def z_r(index,zeta,h,s_rho, hc, Cs_r,N, Vtransform):
     z_r = zeros((int(N)))
-    for k in range(N):
-        #print k
-        #print h[index]
-        z0 = (hc * s_rho[k] + h[index]*Cs_r[k])/(hc + h[index])
-        z_r[k]  = zeta[index] + (zeta[index] + h[index])*z0
+    if Vtransform == 2 or Vtransform == 4:
+        for k in range(N):
+            z0 = (hc * s_rho[k] + h[index]*Cs_r[k])/(hc + h[index])
+            z_r[k]  = zeta[index] + (zeta[index] + h[index])*z0
+    elif Vtransform == 1:
+        for k in range(N):
+            z0 = hc * s_rho[k] + (h[index] - hc) * Cs_r[k]
+            z_r[k] = z0 + zeta[index] * (1.0 + z0/h[index])
+        
     return z_r
 
 
-def z_w(index,zeta,h,s_w, hc, Cs_w,Np):
+def z_w(index,zeta,h,s_w, hc, Cs_w,Np, Vtransform):
     z_w = zeros((int(Np)))
-    for k in range(Np):
-        #print k
-        #print h[index]
-        z0 = (hc * s_w[k] + h[index]*Cs_w[k])/(hc + h[index])
-        z_w[k]  = zeta[index] + (zeta[index] + h[index])*z0
+    if Vtransform == 2 or Vtransform == 4:
+        for k in range(Np):
+            z0 = (hc * s_w[k] + h[index]*Cs_w[k])/(hc + h[index])
+            z_w[k]  = zeta[index] + (zeta[index] + h[index])*z0
+    elif Vtransform == 1:
+        for k in range(Np):
+            z0 = hc * s_w[k] + (h[index] - hc) * Cs_w[k]
+            z_w[k] = z0 + zeta[index] * (1.0 + z0/h[index])
     return z_w
 
 
@@ -228,6 +235,7 @@ s_rho = extract_vert(f, 's_rho')
 Cs_w = extract_vert(f, 'Cs_w')
 s_w = extract_vert(f, 's_w')
 Vtransform = extract_vert(f, 'Vtransform')
+print "Vtransform", Vtransform
 Vstretching = extract_vert(f, 'Vstretching')
 N = len(s_rho)
 Np = len(s_w)
@@ -283,7 +291,7 @@ plt.axis('tight')
 #event handler
 
 class LineBuilder:
-    def __init__(self, line,mx_trans, h,zeta, s_w,hc, Cs_w,Np,mask_rho, s_rho, Cs_r,N):
+    def __init__(self, line,mx_trans, h,zeta, s_w,hc, Cs_w, Np, mask_rho, s_rho, Cs_r, N, Vtransform):
         self.line = line
         self.mx_trans = mx_trans
         self.h = h
@@ -298,6 +306,7 @@ class LineBuilder:
         self.s_rho = s_rho
         self.Cs_r = Cs_r
         self.N = N
+        self.Vtransform = Vtransform
         self.cid = line.figure.canvas.mpl_connect('button_press_event', self)
  
 
@@ -337,11 +346,15 @@ class LineBuilder:
                             ly.append(j[1])                    
                             dz=[]
                             #for i in range(self.Np):
-                            z_dict[str(len(line_points)-1)]= z_w((j[1],j[0]),zeta, h, s_w,hc, Cs_w,Np)
+                            z_dict[str(len(line_points)-1)]= z_w((j[1],j[0]),self.zeta, self.h, self.s_w, self.hc, self.Cs_w,self.Np, self.Vtransform)
                             var_dict[str(len(line_points)-1)] = mx_trans[:,j[1],j[0]]
-                            zr_dict[str(len(line_points)-1)] =z_r((j[1],j[0]),zeta, h, s_rho,hc, Cs_r,N)
+                            zr_dict[str(len(line_points)-1)] =z_r((j[1],j[0]),self.zeta, self.h, self.s_rho,self.hc,self.Cs_r, self.N, self.Vtransform)
                             dy.append(min(np.diff(z_dict[str(len(line_points)-1)])))
-                            column.append(z_w((j[1],j[0]),self.zeta, self.h, self.s_w,self.hc, self.Cs_w,self.Np)[self.Np-1]+self.h[j[1],j[0]])
+                            column.append(z_w((j[1],j[0]),self.zeta, self.h, self.s_w,self.hc, self.Cs_w,self.Np, self.Vtransform)[self.Np-1]+self.h[j[1],j[0]])
+#                            print "is it zero?", z_w((j[1],j[0]),self.zeta, self.h, self.s_w,self.hc, self.Cs_w,self.Np, self.Vtransform)[0]+self.h[j[1],j[0]]
+#                            print "is it zero too?", z_w((j[1],j[0]),self.zeta, self.h, self.s_w,self.hc, self.Cs_w,self.Np, self.Vtransform)[Np-1], self.zeta[j[1],j[0]]
+#                            print self.Cs_w
+                        
                             lat_vert.append(lat[j[1],j[0]])
                             lon_vert.append(lon[j[1],j[0]])
                             if len(lx) ==1:
@@ -516,7 +529,7 @@ ax.set_title('click to build line segments')
 
 
 line, = ax.plot([], [])  # empty line 
-linebuilder = LineBuilder(line,mx_trans,h,zeta, s_w,hc, Cs_w,Np,mask_rho, s_rho, Cs_r, N)
+linebuilder = LineBuilder(line,mx_trans,h,zeta, s_w,hc, Cs_w,Np,mask_rho, s_rho, Cs_r, N, Vtransform)
 
 plt.title(args.variable+' '+ date_time(meta[1][args.time]))
 plt.show()
