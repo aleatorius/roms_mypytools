@@ -276,7 +276,6 @@ dy= []
 z_dict = {}
 zr_dict= {}
 h_dict = {}
-h_dict["hlevel"]=[]
 var_dict = {}
 #for i in range(Np):
 #    z_dict[str(i)]=[]
@@ -311,10 +310,10 @@ if len(xs) > 1:
                 var_dict[str(len(line_points)-1)] = mx_trans[:,j[1],j[0]]
                 zr_dict[str(len(line_points)-1)] =z_r((j[1],j[0]),zeta, h, s_rho,hc, Cs_r,N)
                 dy.append(min(np.diff(z_dict[str(len(line_points)-1)])))
-                h_dict["hlevel"].append(-h[j[1],j[0]])
                 column.append(z_w((j[1],j[0]),zeta, h, s_w,hc, Cs_w,Np)[Np-1]+h[j[1],j[0]])
                 lat_vert.append(lat[j[1],j[0]])
                 lon_vert.append(lon[j[1],j[0]])
+                
                 if len(lx) ==1:
                     absx.append(lx[0])
                 else:
@@ -347,7 +346,7 @@ else:
     dep=100
 
 #creating mesh - linear interpolaton vertically
-mesh_np = np.zeros((dep+3,counter+2))
+mesh_np = np.zeros((dep+10,counter+2))
 mesh_np[:]=1e+37
 
 if args.npinter=="yes":
@@ -358,6 +357,7 @@ if args.npinter=="yes":
             yp = var_dict[str(i)]
 #            print z_dict[str(i)][0]
             xvals = np.linspace(z_dict[str(i)][0], 0, int(abs(z_dict[str(i)][0])/yincr))
+           # xvals = np.linspace(-100, 0, 1000)
             yinterp = np.interp(xvals, np.asarray(xp), np.asarray(yp))
             var_int = yinterp[::-1] 
             for l in var_int:

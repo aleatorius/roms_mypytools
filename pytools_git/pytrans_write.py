@@ -359,9 +359,9 @@ class LineBuilder:
                         
 
                 #all segments are defined, Define mesh
-                print dy
-                print column
-                print np.isnan(dy).any()
+                #print dy
+                #print column
+                #print np.isnan(dy).any()
                 dy = np.asarray(dy)
                 dy = dy[~numpy.isnan(dy)]
                 res=args.res
@@ -377,9 +377,17 @@ class LineBuilder:
                     yincr=0.1
                     dep=100
 
-                mesh = np.zeros((dep+3,counter+2))
+                mesh = np.zeros((dep+10,counter+2))
                 mesh[:]=1e+37
-                out_file = open('segments', "w")
+
+                try:
+                    out_file = open('segments', "w")
+                except IOError:
+                    #e = sys.exc_info()[0]
+                    #print e
+                    print "cannot create file SEGMENTS in this directory, you don't have write permission here  - creating it in your home ~/segments"
+                    out_file = open(os.path.expanduser('~/segments'), "w")
+
                 if len(vert)==len(self.xs):
                     for i in range(len(vert)):
                         string = "("+str(int(round(self.xs[i])))+","+str(int(round(self.ys[i])))+") ("+str(vert[i][1])+","+str(vert[i][2])+")\n"
