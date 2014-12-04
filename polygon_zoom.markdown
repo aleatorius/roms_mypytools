@@ -22,3 +22,9 @@ The colorbar range is defined by interior points of the polygon area.
 NB: the date can be corrected by making changes in this line: ```ref = date(1970,01,01)```
 
 ![polyzoom](poly1.png)
+
+Bathymetry zoom (impose masking?):
+
+![poly_zoom](poly2.png)
+
+![polyzoom](poly3.png)
