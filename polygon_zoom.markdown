@@ -1,10 +1,15 @@
 DRAFT
 
-Files:
+#### Files:
 
 * [polygon_zoom.py](https://source.uit.no/mitya/pytools_git/blob/master/polygon_zoom.py) 
 
-Usage:
+#### Description:
+
+The polygon area can be picked. The rectangular mesh grid containing the polygon area is created. The range of a colobar is defined by the interior points of this polygon area - thus this tool can be used just for purpose of finding out of ranges within area of interest.
+
+
+#### Usage:
  
 ```
 python polygon_zoom.py -i /global/work/jsk/S800/norseas_800m_avg.nc_2006123012 -v temp
@@ -28,3 +33,19 @@ Bathymetry zoom (impose masking?):
 ![poly_zoom](poly2.png)
 
 ![polyzoom](poly3.png)
+
+It is possible to zoom further on, in the following way:
+
+```
+python polygon_zoom.py -i /global/work/jsk/S800/norseas_800m_avg.nc_2006051212 -v h --xrange 1005:1262 --yrange 135:465 --var_min 217 --var_max 533 
+```
+
+![poly_zoom](poly_zoom0.png)
+
+![polyzoom](poly_zoom1.png)
+
+also it is possible to provide coordinate ranges in percents with ```--xzoom``` and ```--yzoom```:
+
+```
+python polygon_zoom.py -i /global/work/jsk/S800/norseas_800m_avg.nc_2006051212 -v h --xzoom 80:95 --yzoom 5:20 --var_min 217 --var_max 533 
+```
