@@ -12,6 +12,8 @@ import datetime
 from datetime import date, time
 import pprint
 from pprint import *
+from matplotlib.path import Path
+
 parser = argparse.ArgumentParser(description='linezoom')
 
 parser.add_argument('--contourf', help='colormesh or contourf', dest='contourf',choices=("yes","no"), action="store", default="no")
@@ -23,6 +25,8 @@ parser.add_argument('--time', help='time counter', dest ='time', action="store",
 parser.add_argument('--vert', help='vertical coordinate number', dest ='vert', action="store", type=int, default=34)
 parser.add_argument('--xzoom', help='zoom along x(?) direction, range is defined in percents', dest ='xzoom', action="store",  default='0:100')
 parser.add_argument('--yzoom', help='zoom along y(?) direction, range is defined in percents', dest ='yzoom', action="store",  default='0:100')
+parser.add_argument('--xrange', help='zoom along x(?) direction, range is defined in percents', dest ='xrange', action="store",  default=None)
+parser.add_argument('--yrange', help='zoom along y(?) direction, range is defined in percents', dest ='yrange', action="store",  default=None)
 parser.add_argument('--var_min', help='minimum value of variable', dest ='var_min', action="store", type=float, default = None)
 parser.add_argument('--var_max', help='minimum value of variable', dest ='var_max', action="store", type=float, default = None)
 args = parser.parse_args()
@@ -51,7 +55,20 @@ else:
                pass
           else:
                parser.error('wrong xzoom, whole range 0:100')
-
+if args.xrange != None:
+    if ':' not in list(args.xrange):
+        parser.error('provide zoom in i:k format!')
+    else:
+        pass
+else:
+    pass
+if args.yrange != None:
+    if ':' not in list(args.yrange):
+        parser.error('provide zoom in i:k format!')
+    else:
+        pass
+else:
+    pass
 
 if float(args.yzoom.split(':')[0])>= float(args.yzoom.split(':')[1]):
      parser.error('in zoom range i:k i<k')
@@ -95,16 +112,14 @@ def unpack(ina):
      return outa
 
 def extract_lat_lon(inf):
-    f = Dataset(inf)
+    f = inf
     lat = unpack(f.variables["lat_rho"])
     lon = unpack(f.variables["lon_rho"])
-    f.close()
-    
     return lat, lon
 def extract(inf, variable, time, vert):
-     f = Dataset(inf)
+     f = inf
      if str(variable) in f.variables.keys():
-          print '\n In the file', inf
+          #print '\n In the file', inf
           print 'variable', variable, 'exists'
           ncvar = unpack(f.variables[variable][time,:])
           print 'and its dimension equals:', size(ncvar.shape)+1
@@ -123,7 +138,6 @@ def extract(inf, variable, time, vert):
           f.close()
           sys.exit()
      ot = unpack(f.variables[args.time_rec])
-     f.close()
      return ncvar, ot
 # Bresenham's line algorithm (somebody' python implementation from the web)
 def get_line(x1, y1, x2, y2):
@@ -161,49 +175,17 @@ def get_line(x1, y1, x2, y2):
     return points
 
 
-#extract data from netcdf
-meta = extract(args.inf, args.variable, args.time, args.vert)
-ze =  extract(args.inf, "zeta", args.time, args.vert)[0]
-zeta = ma.masked_outside(ze, -1e+36,1e+36)
-
-h_m =  extract(args.inf, "h", args.time, args.vert)[0]
-h = ma.masked_outside(h_m, -1e+36,1e+36)
-ncvar = meta[0]
-lat, lon = extract_lat_lon(args.inf)
-fillval = 1e+36
-import matplotlib.pyplot as plt
-from pylab import *
-from matplotlib import colors, cm
-
-#masked data
-mx = ma.masked_outside(ncvar, -1e+36,1e+36)
-cmap=plt.cm.spectral
-fig = plt.gcf()
-#main plot
-p=plt.imshow(mx[int(float(args.yzoom.split(':')[0])*mx.shape[0]/100.):int(float(args.yzoom.split(':')[1])*mx.shape[0]/100.), int(float(args.xzoom.split(':')[0])*mx.shape[1]/100.):int(float(args.xzoom.split(':')[1])*mx.shape[1]/100.)], cmap=cmap, origin='lower', interpolation='nearest');plt.colorbar()     
-#p=plt.pcolormesh(mx[int(float(args.yzoom.split(':')[0])*mx.shape[0]/100.):int(float(args.yzoom.split(':')[1])*mx.shape[0]/100.), int(float(args.xzoom.split(':')[0])*mx.shape[1]/100.):int(float(args.xzoom.split(':')[1])*mx.shape[1]/100.)], cmap=cmap);plt.colorbar()     
-
-#format axes
-if args.var_min or args.var_max:
-     if args.var_min and args.var_max:
-          if args.var_min < args.var_max:
-               p.set_clim(float(args.var_min), float(args.var_max))
-          else:
-               print 'incorrect var_min shoud be less than var_max, defaults then'
-               pass
-     else:
-          p.set_clim(args.var_min, args.var_max)
-else:
-     pass
-plt.axis('tight')
-
 
 #event handler
 
 class LineBuilder:
-    def __init__(self, line, mx):
+    def __init__(self, line, mx, lat, lon, x_0, y_0):
         self.line = line
         self.mx = mx
+        self.lat = lat
+        self.lon = lon
+        self.x_0 = x_0
+        self.y_0 = y_0
         self.xs = list(line.get_xdata())
         self.ys = list(line.get_ydata())
         self.cid = line.figure.canvas.mpl_connect('button_press_event', self)
@@ -218,8 +200,6 @@ class LineBuilder:
             self.line.set_data(self.xs, self.ys)
             self.line.figure.canvas.draw()
         if  event.button == 3:
-            #self.line.set_data(self.xs, self.ys)
-            #self.line.figure.canvas.draw()
             vertices=zip(self.xs,self.ys)
             if len(self.xs) > 1:
                 fig_line = plt.figure(figsize=(22, 8))
@@ -235,8 +215,8 @@ class LineBuilder:
                         lx.append(j[0])
                         ly.append(j[1])
                         ncv.append(self.mx[j[1],j[0]])
-                        lat_vert.append(lat[j[1],j[0]])
-                        lon_vert.append(lon[j[1],j[0]])
+                        lat_vert.append(self.lat[j[1],j[0]])
+                        lon_vert.append(self.lon[j[1],j[0]])
                         if len(lx) ==1:
                             absx.append(lx[0])
                         else:
@@ -253,8 +233,8 @@ class LineBuilder:
                     lx.append(j[0])
                     ly.append(j[1])
                     ncv.append(self.mx[j[1],j[0]])
-                    lat_vert.append(lat[j[1],j[0]])
-                    lon_vert.append(lon[j[1],j[0]])
+                    lat_vert.append(self.lat[j[1],j[0]])
+                    lon_vert.append(self.lon[j[1],j[0]])
                     if len(lx) ==1:
                         absx.append(lx[0])
                     else:
@@ -268,9 +248,7 @@ class LineBuilder:
                 poly_vert=[]
                 for i in zip(self.xs,self.ys):
                     poly_vert.append((i[1]-np.amin(np.asarray(ly)),i[0]-np.amin(np.asarray(lx))))
-                print poly_vert
-
-                from matplotlib.path import Path
+                
                 path = Path(poly_vert)
                 print path
                 mx_slice = mx[(min(np.asarray(ly))-1):(max(np.asarray(ly))), (min(np.asarray(lx))-1):(max(np.asarray(lx)))]
@@ -279,17 +257,7 @@ class LineBuilder:
                         mask_polygon[index]=1
                     else:
                         pass
-                #print isInside
-                            
-
-                    
-                print mask_polygon.shape
                 ncv = np.asarray(ncv)
-                print ncv.shape
-                yx= zip(ly,lx)
-                print  yx
-
-
                 print min(np.asarray(ly)),  max(np.asarray(ly))
                 print min(np.asarray(lx)),  max(np.asarray(lx))
                 r_ncv = ncv[~np.isnan(ncv)]
@@ -319,10 +287,10 @@ class LineBuilder:
                 x_tick, y_tick, x_label, y_label = [],[],[],[]
                 for v in np.linspace(0,  np.amax(np.asarray(ly))-np.amin(np.asarray(ly)), num = 21):
                     y_tick.append(v)
-                    y_label.append(str(int(v+ np.amin(np.asarray(ly)))))
+                    y_label.append(str(int(y_0+v+ np.amin(np.asarray(ly)))))
                 for v in np.linspace(0,  np.amax(np.asarray(lx))-np.amin(np.asarray(lx)), num = 21):
                     x_tick.append(v)
-                    x_label.append(str(int(v+ np.amin(np.asarray(lx)))))
+                    x_label.append(str(int(x_0+v+ np.amin(np.asarray(lx)))))
                 ax_zoom.set_xticks(x_tick)
                 ax_zoom.set_xticklabels(x_label, rotation=30)
                 ax_zoom.set_yticks(y_tick)
@@ -367,15 +335,98 @@ class LineBuilder:
             exit()
 
 
+#extract data from netcdf
+f = Dataset(args.inf)
+meta = extract(f, args.variable, args.time, args.vert)
+lat_meta, lon_meta=extract_lat_lon(f)
+f.close()
 
-ax = fig.add_subplot(111)
-ax.set_title('click to build line segments')
+ncvar = meta[0]
+
+if args.xrange != None or args.yrange != None :
+    x_range="0:"+str(ncvar.shape[1])
+    y_range="0:"+str(ncvar.shape[0])
+    if args.xrange != None and args.yrange != None :
+        x_range = args.xrange
+        y_range = args.yrange
+ 
+    else:
+        if args.xrange == None:
+            y_range = args.yrange
+        else:
+            x_range = args.xrange
+
+else:
+        x_range = str(int(float(args.xzoom.split(':')[0])*ncvar.shape[1]/100.))+":"+str(int(float(args.xzoom.split(':')[1])*ncvar.shape[1]/100.))
+        y_range = str(int(float(args.yzoom.split(':')[0])*ncvar.shape[0]/100.))+":"+str(int(float(args.yzoom.split(':')[1])*ncvar.shape[0]/100.))
+
+x_0 = int(float(x_range.split(':')[0]))
+y_0 = int(float(y_range.split(':')[0]))
+lat = lat_meta[int(float(y_range.split(':')[0])):int(float(y_range.split(':')[1])), int(float(x_range.split(':')[0])):int(float(x_range.split(':')[1]))]
+lon = lon_meta[int(float(y_range.split(':')[0])):int(float(y_range.split(':')[1])), int(float(x_range.split(':')[0])):int(float(x_range.split(':')[1]))]
+
+fillval = 1e+36
+mx = ma.masked_outside(ncvar, -fillval,fillval)[int(float(y_range.split(':')[0])):int(float(y_range.split(':')[1])), int(float(x_range.split(':')[0])):int(float(x_range.split(':')[1]))]
+
+
+import matplotlib.pyplot as plt
+from pylab import *
+from matplotlib import colors, cm
+
+cmap=plt.cm.spectral
+fig_main, ax_main = plt.subplots()
+
+#main plot
+try:
+    p=plt.imshow(mx, cmap=cmap, origin='lower', interpolation='nearest');plt.colorbar()     
+except ValueError:
+    e = sys.exc_info()[0]
+    print e
+    print "ERROR: possibly out of range: xrange yrange"
+    print "yrange should be within : ", ncvar.shape[0]
+    print "xrange should be within : ", ncvar.shape[1]
+    print "your range for xrange :", args.xrange
+    print "your range for yrange :", args.yrange
+
+    sys.exit()
+
+
+#format axes
+if args.var_min or args.var_max:
+     if args.var_min and args.var_max:
+          if args.var_min < args.var_max:
+               p.set_clim(float(args.var_min), float(args.var_max))
+          else:
+               print 'incorrect var_min shoud be less than var_max, defaults then'
+               pass
+     else:
+          p.set_clim(args.var_min, args.var_max)
+else:
+     pass
+
+x_tick, y_tick, x_label, y_label = [],[],[],[]
+for v in np.linspace(0,  int(y_range.split(':')[1])-y_0-1, num = 11):
+    print v+y_0
+    y_tick.append(v)
+    y_label.append(str(int(y_0+v)))
+for v in np.linspace(0,  int(x_range.split(':')[1])-x_0-1, num = 11):
+    print v+x_0
+    x_tick.append(v)
+    x_label.append(str(int(x_0+v)))
+ax_main.set_xticks(x_tick)
+ax_main.set_xticklabels(x_label, rotation=30)
+ax_main.set_yticks(y_tick)
+ax_main.set_yticklabels(y_label)
+
+plt.axis('tight')
+ax_main.set_title(args.variable+' '+ date_time(meta[1][args.time]))
+
+
+ax = fig_main.add_subplot(111)
 
 line, = ax.plot([], [])  # empty line 
-linebuilder = LineBuilder(line, mx)
+
+linebuilder = LineBuilder(line, mx, lat, lon, x_0, y_0)
 
 
-
-
-plt.title(args.variable+' '+ date_time(meta[1][args.time]))
 plt.show()
