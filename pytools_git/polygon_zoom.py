@@ -16,6 +16,7 @@ from matplotlib.path import Path
 
 parser = argparse.ArgumentParser(description='linezoom')
 
+parser.add_argument('--ref_datetime', help='reference date time: 1970-01-01 00:00:00', dest='ref_datetime', action="store", nargs=2, default=None)
 parser.add_argument('--contourf', help='colormesh or contourf', dest='contourf',choices=("yes","no"), action="store", default="no")
 parser.add_argument('-i', help='input file', dest='inf', action="store")
 parser.add_argument('-v', help='variable', dest ='variable', action="store")
@@ -90,13 +91,19 @@ def print_list(data):
 
 
 def date_time(ot):
-     ref = date(1970,01,01)
-     ref_time = time(0,0,0)
-     refer= datetime.datetime.combine(ref, ref_time)
-     if args.time_f =='s':
-         return (refer + datetime.timedelta(float(ot)/(3600*24))).strftime("%Y-%m-%d %H:%M:%S")
-     else:
-         return (refer + datetime.timedelta(float(ot))).strftime("%Y-%m-%d %H:%M:%S")
+    if args.ref_datetime == None:
+        ref = date(1970,01,01)
+        ref_time = time(0,0,0)
+    else:
+        print args.ref_datetime[0], args.ref_datetime[1]
+        ref = datetime.datetime.strptime(args.ref_datetime[0],'%Y-%m-%d').date()
+        ref_time = datetime.datetime.strptime(args.ref_datetime[1],'%H:%M:%S').time()
+
+    refer= datetime.datetime.combine(ref, ref_time)
+    if args.time_f =='s':
+        return (refer + datetime.timedelta(float(ot)/(3600*24))).strftime("%Y-%m-%d %H:%M:%S")
+    else:
+        return (refer + datetime.timedelta(float(ot))).strftime("%Y-%m-%d %H:%M:%S")
 
 
 if not (args.variable):
@@ -250,7 +257,6 @@ class LineBuilder:
                     poly_vert.append((i[1]-np.amin(np.asarray(ly)),i[0]-np.amin(np.asarray(lx))))
                 
                 path = Path(poly_vert)
-                print path
                 mx_slice = mx[(min(np.asarray(ly))-1):(max(np.asarray(ly))), (min(np.asarray(lx))-1):(max(np.asarray(lx)))]
                 for index, val in np.ndenumerate(mx_slice):
                     if path.contains_point(index)==1:
@@ -258,8 +264,7 @@ class LineBuilder:
                     else:
                         pass
                 ncv = np.asarray(ncv)
-                print min(np.asarray(ly)),  max(np.asarray(ly))
-                print min(np.asarray(lx)),  max(np.asarray(lx))
+
                 r_ncv = ncv[~np.isnan(ncv)]
                 if len(r_ncv) != 0:
                     ax_line.axis([min(absx)-(max(absx)-min(absx))/20., max(absx)+(max(absx)-min(absx))/20., min(r_ncv), max(r_ncv)+(max(r_ncv)-min(r_ncv))/20.])
@@ -300,8 +305,10 @@ class LineBuilder:
                 mx_slice_masked = ma.masked_where(mask_polygon==0,mx_slice)
                 mx_slice_out = ma.masked_where(mask_polygon==1,mx_slice)
                 
-                print mx_slice.shape
+                #print mx_slice.shape
                 lvls = np.linspace(np.amin(mx_slice_masked),np.amax(mx_slice_masked),num=21)
+                print "the following arguments can be passed to the script for further zooming if needed:"
+                print "--yrange ", str(min(np.asarray(ly)))+":"+str(max(np.asarray(ly))), " --xrange ", str(min(np.asarray(lx)))+":"+str(max(np.asarray(lx))), " --var_min ", np.amin(mx_slice_masked), " --var_max ", np.amax(mx_slice_masked)
                 cmap_zoom=plt.cm.spectral 
                 cmap_out = plt.cm.Greys
                 if args.contourf == "yes":
@@ -406,11 +413,9 @@ else:
 
 x_tick, y_tick, x_label, y_label = [],[],[],[]
 for v in np.linspace(0,  int(y_range.split(':')[1])-y_0-1, num = 11):
-    print v+y_0
     y_tick.append(v)
     y_label.append(str(int(y_0+v)))
 for v in np.linspace(0,  int(x_range.split(':')[1])-x_0-1, num = 11):
-    print v+x_0
     x_tick.append(v)
     x_label.append(str(int(x_0+v)))
 ax_main.set_xticks(x_tick)
