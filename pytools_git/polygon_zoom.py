@@ -1,6 +1,6 @@
  #!/usr/bin/env python 
 ##!/home/ntnu/mitya/virt_env/virt1/bin/python -B
-## Dmitry Shcherbin, 2014.10.28
+## Dmitry Shcherbin, 2014.12.05
 import numpy as np
 from numpy import *
 from netCDF4 import *
@@ -14,7 +14,7 @@ import pprint
 from pprint import *
 from matplotlib.path import Path
 
-parser = argparse.ArgumentParser(description='linezoom')
+parser = argparse.ArgumentParser(description='polygon zoom')
 
 parser.add_argument('--ref_datetime', help='reference date time: 1970-01-01 00:00:00', dest='ref_datetime', action="store", nargs=2, default=None)
 parser.add_argument('--contourf', help='colormesh or contourf', dest='contourf',choices=("yes","no"), action="store", default="no")
@@ -183,7 +183,7 @@ def get_line(x1, y1, x2, y2):
 
 
 
-#event handler
+#event handler - original sample is taken from matplotlib examples (LineBuilder event handler)
 
 class LineBuilder:
     def __init__(self, line, mx, lat, lon, x_0, y_0):
@@ -308,7 +308,7 @@ class LineBuilder:
                 #print mx_slice.shape
                 lvls = np.linspace(np.amin(mx_slice_masked),np.amax(mx_slice_masked),num=21)
                 print "the following arguments can be passed to the script for further zooming if needed:"
-                print "--yrange ", str(min(np.asarray(ly)))+":"+str(max(np.asarray(ly))), " --xrange ", str(min(np.asarray(lx)))+":"+str(max(np.asarray(lx))), " --var_min ", np.amin(mx_slice_masked), " --var_max ", np.amax(mx_slice_masked)
+                print "--yrange ", str(y_0+min(np.asarray(ly)))+":"+str(y_0+max(np.asarray(ly))), " --xrange ", str(x_0+min(np.asarray(lx)))+":"+str(x_0+max(np.asarray(lx))), " --var_min ", np.amin(mx_slice_masked), " --var_max ", np.amax(mx_slice_masked)
                 cmap_zoom=plt.cm.spectral 
                 cmap_out = plt.cm.Greys
                 if args.contourf == "yes":
