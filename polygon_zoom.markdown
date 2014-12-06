@@ -51,6 +51,13 @@ the following arguments can be passed to the script for further zooming if neede
 --yrange  659:925  --xrange  345:654  --var_min  -0.852001547813  --var_max  3.5637383461
 ```
 
+A different s-layer can be specified with prefix ```--vert```  (defalut is ````34``` - which is the surface layer. In the examples I consider here there are 35 vertical sigma layers):
+
+```
+python polygon_zoom.py -i /global/work/jsk/S800/norseas_800m_avg.nc_2006051212 -v temp --ref_datetime 1948-01-01 00:00:00 --yrange  659:925  --xrange  345:654  --var_min  -0.852001547813  --var_max  3.5637383461   --vert 0 &
+```
+![poly_zoom](poly8.png)
+
 A different variable can be passed to the script, e.g. bathymetry ```-v h``` (NB: don't forget to modify or delete variable ranges defined by ``` --var_min  -0.852001547813  --var_max  3.5637383461``` ):
 
 ```
