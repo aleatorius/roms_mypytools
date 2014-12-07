@@ -10,26 +10,116 @@ import argparse
 import os.path
 import datetime
 from datetime import date, time
-import pprint
-from pprint import *
 from matplotlib.path import Path
 
-parser = argparse.ArgumentParser(description='polygon zoom')
+parser = argparse.ArgumentParser(
+description='polygon zoom'
+)
 
-parser.add_argument('--ref_datetime', help='reference date time: 1970-01-01 00:00:00', dest='ref_datetime', action="store", nargs=2, default=None)
-parser.add_argument('--contourf', help='colormesh or contourf', dest='contourf',choices=("yes","no"), action="store", default="no")
-parser.add_argument('-i', help='input file', dest='inf', action="store")
-parser.add_argument('-v', help='variable', dest ='variable', action="store")
-parser.add_argument('-f', help='time format', dest='time_f', action="store", default="s")
-parser.add_argument('--time_rec', help='time rec', dest ='time_rec', action="store", default="ocean_time")
-parser.add_argument('--time', help='time counter', dest ='time', action="store", type=int, default=0)
-parser.add_argument('--vert', help='vertical coordinate number', dest ='vert', action="store", type=int, default=34)
-parser.add_argument('--xzoom', help='zoom along x(?) direction, range is defined in percents', dest ='xzoom', action="store",  default='0:100')
-parser.add_argument('--yzoom', help='zoom along y(?) direction, range is defined in percents', dest ='yzoom', action="store",  default='0:100')
-parser.add_argument('--xrange', help='zoom along x(?) direction, range is defined in percents', dest ='xrange', action="store",  default=None)
-parser.add_argument('--yrange', help='zoom along y(?) direction, range is defined in percents', dest ='yrange', action="store",  default=None)
-parser.add_argument('--var_min', help='minimum value of variable', dest ='var_min', action="store", type=float, default = None)
-parser.add_argument('--var_max', help='minimum value of variable', dest ='var_max', action="store", type=float, default = None)
+parser.add_argument(
+'--ref_datetime', 
+help='reference date time: 1970-01-01 00:00:00', 
+dest='ref_datetime', 
+action="store", 
+nargs=2, 
+default=None
+)
+parser.add_argument(
+'--contourf', 
+help='colormesh or contourf', 
+dest='contourf',
+choices=("yes","no"), 
+action="store", 
+default="no"
+)
+parser.add_argument(
+'-i', 
+help='input file', 
+dest='inf', 
+action="store"
+)
+parser.add_argument(
+'-v', 
+help='variable', 
+dest ='variable', 
+action="store"
+)
+parser.add_argument(
+'--f', 
+help='time - seconds or days', 
+dest='time_f', 
+action="store",
+choices=("s","d"), 
+default="s"
+)
+parser.add_argument(
+'--time_rec', 
+help='time records name - ocean_time, clim_time, time, etc', 
+dest ='time_rec', 
+action="store", 
+default="ocean_time"
+)
+parser.add_argument(
+'--time', 
+help='time counter', 
+dest ='time', 
+action="store", 
+type=int, 
+default=0
+)
+parser.add_argument(
+'--vert', 
+help='vertical coordinate number', 
+dest ='vert', 
+action="store", 
+type=int, 
+default=34
+)
+parser.add_argument(
+'--xzoom', 
+help='zoom along x direction, range is defined in percents', 
+dest ='xzoom', 
+action="store",  
+default='0:100'
+)
+parser.add_argument(
+'--yzoom', 
+help='zoom along y direction, range is defined in percents', 
+dest ='yzoom', 
+action="store",  
+default='0:100'
+)
+parser.add_argument(
+'--xrange', 
+help='zoom along x direction', 
+dest ='xrange', 
+action="store",  
+default=None
+)
+parser.add_argument(
+'--yrange', 
+help='zoom along y direction', 
+dest ='yrange', 
+action="store",  
+default=None
+)
+parser.add_argument(
+'--var_min', 
+help='minimum value of variable', 
+dest ='var_min', 
+action="store", 
+type=float, 
+default = None
+)
+parser.add_argument(
+'--var_max', 
+help='max value of variable', 
+dest ='var_max', 
+action="store", 
+type=float, 
+default = None
+)
+
 args = parser.parse_args()
 
 if not (args.inf):
@@ -120,8 +210,24 @@ def unpack(ina):
 
 def extract_lat_lon(inf):
     f = inf
-    lat = unpack(f.variables["lat_rho"])
-    lon = unpack(f.variables["lon_rho"])
+    #list of possible names in tuples
+    coords = (("lat_rho","lon_rho"),("lat", "lon"))
+    result = False
+    for t in coords:
+        try:
+            print t
+            lat = unpack(f.variables[str(t[0])])  
+            lon = unpack(f.variables[str(t[1])])  
+            result = True
+            break
+        except KeyError:
+             #e = sys.exc_info()[0]
+            print "key error, trying another name for time record"
+            continue
+    print result
+    if result == False:
+        print "there are no coordinates with names", coords
+
     return lat, lon
 def extract(inf, variable, time, vert):
      f = inf
@@ -144,7 +250,25 @@ def extract(inf, variable, time, vert):
           print_list(f.variables.keys())          
           f.close()
           sys.exit()
-     ot = unpack(f.variables[args.time_rec])
+     times = (args.time_rec, "time", "clim_time", "bry_time")
+     result = False
+     for t in times:
+         try:
+             print t
+             ot = unpack(f.variables[str(t)])  
+             result = True
+             break
+         except KeyError:
+             #e = sys.exc_info()[0]
+             print "key error, trying another name for time record"
+             continue
+     print result
+     if result == False:
+         print "there is no time var with names", times
+         exit()
+     else:
+         pass
+
      return ncvar, ot
 # Bresenham's line algorithm (somebody' python implementation from the web)
 def get_line(x1, y1, x2, y2):
@@ -209,15 +333,16 @@ class LineBuilder:
         if  event.button == 3:
             vertices=zip(self.xs,self.ys)
             if len(self.xs) > 1:
+                cycle=vertices
+                cycle.append((self.xs[0],self.ys[0]))
                 fig_line = plt.figure(figsize=(22, 8))
                 ax_line = fig_line.add_subplot(121)
-                ax_zoom = fig_line.add_subplot(122)
+              
                 lat_vert, lon_vert,vert,ncv,absx,lx,ly =[],[],[],[],[],[],[]
                 label_vert=[]
-                for i in range(0,len(self.xs)-1):
-
-                    points=get_line(int(round(self.xs[i])), int(round(self.ys[i])), int(round(self.xs[i+1])),int(round(self.ys[i+1])))
-            
+                #---------------Line plot----------------------------
+                for i in range(0,len(self.xs)):
+                    points=get_line(int(round(cycle[i][0])), int(round(cycle[i][1])), int(round(cycle[i+1][0])),int(round(cycle[i+1][1])))
                     for j in points:
                         lx.append(j[0])
                         ly.append(j[1])
@@ -234,28 +359,38 @@ class LineBuilder:
                     else:
                         vert.append((absx[-1],lat_vert[-1],lon_vert[-1]))
 
-                points=get_line(int(round(self.xs[-1])), int(round(self.ys[-1])), int(round(self.xs[0])),int(round(self.ys[0])))
-            
-                for j in points:
-                    lx.append(j[0])
-                    ly.append(j[1])
-                    ncv.append(self.mx[j[1],j[0]])
-                    lat_vert.append(self.lat[j[1],j[0]])
-                    lon_vert.append(self.lon[j[1],j[0]])
-                    if len(lx) ==1:
-                        absx.append(lx[0])
-                    else:
-                        absx.append(absx[-1]+int(sqrt((lx[-1]-lx[-2])**2+(ly[-1]-ly[-2])**2)))
-                if len(vert)==0:
-                    vert.append((absx[0],lat_vert[0],lon_vert[0]))
-                    vert.append((absx[-1],lat_vert[-1],lon_vert[-1]))
+                #Line plot parameters and line plot itself
+
+                ncv = np.asarray(ncv)
+                r_ncv = ncv[~np.isnan(ncv)]
+                if len(r_ncv) != 0:
+                    ax_line.axis([min(absx)-(max(absx)-min(absx))/20., max(absx)+(max(absx)-min(absx))/20., min(r_ncv), max(r_ncv)+(max(r_ncv)-min(r_ncv))/20.])
                 else:
-                    vert.append((absx[-1],lat_vert[-1],lon_vert[-1]))
+                    pass
+                x_tick=[]
+                x_label=[]
+                if len(vert) > 1:
+                    for v in vert:
+                        x_tick.append(v[0])
+                        x_label.append('('+str('%.1f' % v[1])+','+str('%.1f' % v[2])+')')
+              
+                else:
+                    pass
+                ax_line.set_xticks(x_tick)
+                ax_line.set_xticklabels(x_label, rotation=30, fontsize=8)
+                ax_line.xaxis.grid(True)
+                ax_line.yaxis.grid(True)
+                ax_line.plot(absx,ncv)
+
+
+
+
+                # Polygon mask
                 mask_polygon = np.zeros(( np.amax(np.asarray(ly))-np.amin(np.asarray(ly))+1, np.amax(np.asarray(lx))-np.amin(np.asarray(lx))+1))
                 poly_vert=[]
-                for i in zip(self.xs,self.ys):
+                for i in vertices:
                     poly_vert.append((i[1]-np.amin(np.asarray(ly)),i[0]-np.amin(np.asarray(lx))))
-                
+            
                 path = Path(poly_vert)
                 mx_slice = mx[(min(np.asarray(ly))-1):(max(np.asarray(ly))), (min(np.asarray(lx))-1):(max(np.asarray(lx)))]
                 for index, val in np.ndenumerate(mx_slice):
@@ -263,31 +398,8 @@ class LineBuilder:
                         mask_polygon[index]=1
                     else:
                         pass
-                ncv = np.asarray(ncv)
 
-                r_ncv = ncv[~np.isnan(ncv)]
-                if len(r_ncv) != 0:
-                    ax_line.axis([min(absx)-(max(absx)-min(absx))/20., max(absx)+(max(absx)-min(absx))/20., min(r_ncv), max(r_ncv)+(max(r_ncv)-min(r_ncv))/20.])
-                else:
-                    pass
-
-                x_tick=[]
-                x_label=[]
-                if len(vert) > 1:
-                    for v in vert:
-                        x_tick.append(v[0])
-                        x_label.append('('+str(int(round(v[1])))+','+str(int(round(v[2])))+')')
-              
-                else:
-                    pass
-                ax_line.set_xticks(x_tick)
-                ax_line.set_xticklabels(x_label, rotation=30)
-                ax_line.xaxis.grid(True)
-                ax_line.yaxis.grid(True)
-
-#                plt.xticks(rotation=30)
-                ax_line.plot(absx,ncv)
-
+                #polygon plot
                 ax_zoom = fig_line.add_subplot(122)
                 x_tick, y_tick, x_label, y_label = [],[],[],[]
                 for v in np.linspace(0,  np.amax(np.asarray(ly))-np.amin(np.asarray(ly)), num = 21):
@@ -300,17 +412,14 @@ class LineBuilder:
                 ax_zoom.set_xticklabels(x_label, rotation=30)
                 ax_zoom.set_yticks(y_tick)
                 ax_zoom.set_yticklabels(y_label)
-                #plt.xticks(rotation=30)
-               
                 mx_slice_masked = ma.masked_where(mask_polygon==0,mx_slice)
                 mx_slice_out = ma.masked_where(mask_polygon==1,mx_slice)
-                
-                #print mx_slice.shape
                 lvls = np.linspace(np.amin(mx_slice_masked),np.amax(mx_slice_masked),num=21)
                 print "the following arguments can be passed to the script for further zooming if needed:"
                 print "--yrange ", str(y_0+min(np.asarray(ly)))+":"+str(y_0+max(np.asarray(ly))), " --xrange ", str(x_0+min(np.asarray(lx)))+":"+str(x_0+max(np.asarray(lx))), " --var_min ", np.amin(mx_slice_masked), " --var_max ", np.amax(mx_slice_masked)
                 cmap_zoom=plt.cm.spectral 
                 cmap_out = plt.cm.Greys
+
                 if args.contourf == "yes":
                     slice_mesh=ax_zoom.contourf(mx_slice_masked,levels=lvls, cmap=cmap_zoom)
                     slice_mesh_out=ax_zoom.contourf(mx_slice_out,levels=lvls, cmap=cmap_out, vmin=np.amin(mx_slice_masked), vmax=np.amax(mx_slice_masked))
@@ -321,14 +430,14 @@ class LineBuilder:
                     txt = plt.text(round(vert[0])-min(np.asarray(lx)), round(vert[1])-min(np.asarray(ly)), "("+str('%.1f' %  lat[(round(vert[1]),round(vert[0]))])+","+str('%.1f' % lon[(round(vert[1]),round(vert[0]))])+")", fontsize=8)
                     txt.set_bbox(dict(color='white', alpha=0.5, edgecolor='red'))
 
-                plt.axis('tight') 
+                plt.axis('tight')
+                # info at polygon vertices 
                 box = ax_zoom.get_position()
                 ax_zoom.set_position([box.x0*1.05, box.y0, box.width, box.height])
                 axColor = plt.axes([box.x0 + box.width * 1.16, box.y0, 0.01, box.height])
                 plt.colorbar(slice_mesh, cax = axColor, ticks=lvls, orientation="vertical")
 
-                #fig_line.tight_layout()
-
+                #nullify arrays for next pick
                 self.xs = []
                 self.ys = []
                 plt.show()
@@ -345,10 +454,15 @@ class LineBuilder:
 #extract data from netcdf
 f = Dataset(args.inf)
 meta = extract(f, args.variable, args.time, args.vert)
-lat_meta, lon_meta=extract_lat_lon(f)
+ncvar = meta[0]
+try:
+    lat_meta, lon_meta = extract_lat_lon(f)
+except:
+    print "no lat lon coordinates with names lat_rho and lon_rho in this file, putting zeros"
+    lat_meta, lon_meta=np.zeros(ncvar.shape), np.zeros(ncvar.shape)
 f.close()
 
-ncvar = meta[0]
+
 
 if args.xrange != None or args.yrange != None :
     x_range="0:"+str(ncvar.shape[1])
