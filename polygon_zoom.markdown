@@ -1,14 +1,17 @@
 #### Files:
 
 * [polygon_zoom.py](https://source.uit.no/mitya/pytools_git/blob/master/polygon_zoom.py) 
+* [polygon_zoom_read.py](https://source.uit.no/mitya/pytools_git/blob/master/polygon_zoom_read.py) 
 
 #### Description:
 
-A polygon area can be picked. The rectangular mesh grid containing this polygon area is created. The range of the colobar is defined by the interior points of this polygon area.  Thus this tool can be used for the purpose of finding variable range within the area of interest.
+A polygonal area can be picked. The rectangular mesh grid containing this polygon area is created. The range of the colobar is defined by the interior points of the polygonal area.  Thus this tool can be used for the purpose of finding the range of variable in the the area of interest.
 
 
 #### Usage:
  
+* [polygon_zoom.py](https://source.uit.no/mitya/pytools_git/blob/master/polygon_zoom.py) 
+
 ```
 python polygon_zoom.py -i /global/work/jsk/S800/norseas_800m_avg.nc_2006051212 -v temp  &
 ```
@@ -18,7 +21,20 @@ A right-click puts this process to the end and fires a window with two plots.
 
 The colorbar range is defined by interior points of the polygon area.
 
-### Sample outputs:
+* [polygon_zoom_read.py](https://source.uit.no/mitya/pytools_git/blob/master/polygon_zoom_read.py) 
+
+```
+python polygon_zoom_read.py -i /global/work/jsk/S800/norseas_800m_avg.nc_2006051212 -v temp --pout foo
+```
+This script writes out txt-files for each polygon, a writing is activated by prefix ```-pout```, and files ```foo_0, foo_1, foo_2,...``` are created.
+
+```
+python polygon_zoom_read.py -i /global/work/jsk/S800/norseas_800m_avg.nc_2006051212 -v temp --ref_datetime 1948-01-01 00:00:00 --pin foo_1 &
+```
+In this way the script reads from a previously created txt file```foo_1``` the vertices of a polygon and shows a plot, which is not interactive.
+
+If prefixes ```--pout``` and ```--pin``` are not provided, then ```polygon_zoom_read.py``` is completely identical to ```polygon_zoom.py``` (Because ```polygon_zoom_read.py``` looks a bit messier - I decided to keep ```polygon_zoom.py```)
+### Sample outputs and usages:
 
 ![poly_zoom](poly0.png)
 
@@ -101,7 +117,39 @@ optional arguments:
   --contourf {yes,no}   colormesh or contourf
   -i INF                input file
   -v VARIABLE           variable
-  --f {s,d}             time - seconds or days
+  --f {s,d}             time format - seconds or days with respect to reference date and time
+  --time_rec TIME_REC   time records name - ocean_time, clim_time, time, etc
+  --time TIME           time counter
+  --vert VERT           vertical coordinate number
+  --xzoom XZOOM         zoom along x direction, range is defined in percents
+  --yzoom YZOOM         zoom along y direction, range is defined in percents
+  --xrange XRANGE       zoom along x direction
+  --yrange YRANGE       zoom along y direction
+  --var_min VAR_MIN     minimum value of variable
+  --var_max VAR_MAX     max value of variable
+
+
+[mitya@stallo-2 pytools_git]$ python polygon_zoom_read.py -h
+usage: polygon_zoom_read.py [-h] [--ref_datetime REF_DATETIME REF_DATETIME]
+                            [--contourf {yes,no}] [-i INF] [--pout POUT]
+                            [--pin PIN] [-v VARIABLE] [--f {s,d}]
+                            [--time_rec TIME_REC] [--time TIME] [--vert VERT]
+                            [--xzoom XZOOM] [--yzoom YZOOM] [--xrange XRANGE]
+                            [--yrange YRANGE] [--var_min VAR_MIN]
+                            [--var_max VAR_MAX]
+
+polygon zoom
+
+optional arguments:
+  -h, --help            show this help message and exit
+  --ref_datetime REF_DATETIME REF_DATETIME
+                        reference date time: 1970-01-01 00:00:00
+  --contourf {yes,no}   colormesh or contourf
+  -i INF                input file
+  --pout POUT           output polygon file
+  --pin PIN             input polygon file
+  -v VARIABLE           variable
+  --f {s,d}             time format - seconds or days with respect to reference date and time
   --time_rec TIME_REC   time records name - ocean_time, clim_time, time, etc
   --time TIME           time counter
   --vert VERT           vertical coordinate number
