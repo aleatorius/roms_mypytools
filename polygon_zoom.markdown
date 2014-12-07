@@ -4,7 +4,7 @@
 
 #### Description:
 
-The polygon area can be picked. The rectangular mesh grid containing the polygon area is created. The range of a colobar is defined by the interior points of this polygon area.  Thus this tool can be used just for the purpose of finding out of variable range within the area of interest.
+A polygon area can be picked. The rectangular mesh grid containing this polygon area is created. The range of the colobar is defined by the interior points of this polygon area.  Thus this tool can be used for the purpose of finding variable range within the area of interest.
 
 
 #### Usage:
@@ -35,7 +35,7 @@ It is possible to zoom further on, the suggested ranges for variable and grid ar
 the following arguments can be passed to the script for further zooming if needed:
 --yrange  513:948  --xrange  338:957  --var_min  -1.66292405128  --var_max  3.79804301262
 ```
-Thus thye next command may look like:
+Thus a command may look like:
 
 ```
  python polygon_zoom.py -i /global/work/jsk/S800/norseas_800m_avg.nc_2006051212 -v temp  --ref_datetime 1948-01-01 00:00:00 --yrange  513:948  --xrange  338:957  --var_min  -1.66292405128  --var_max  3.79804301262 &
@@ -51,7 +51,7 @@ the following arguments can be passed to the script for further zooming if neede
 --yrange  659:925  --xrange  345:654  --var_min  -0.852001547813  --var_max  3.5637383461
 ```
 
-A different s-layer can be specified with prefix ```--vert```  (defalut is ````34``` - which is the surface layer. In the examples I consider here there are 35 vertical sigma layers):
+A different s-layer can be specified with prefix ```--vert```  (the default is ````34``` - which is the surface layer. In the examples I consider here there are 35 vertical sigma layers):
 
 ```
 python polygon_zoom.py -i /global/work/jsk/S800/norseas_800m_avg.nc_2006051212 -v temp --ref_datetime 1948-01-01 00:00:00 --yrange  659:925  --xrange  345:654  --var_min  -0.852001547813  --var_max  3.5637383461   --vert 0 &
@@ -76,8 +76,40 @@ the following arguments can be passed to the script for further zooming if neede
 
 ![poly_zoom](poly7.png)
 
-The coordinate ranges can be provided in percents with respect to grid dimensions (if unknown) with ```--xzoom``` and ```--yzoom```:
+The coordinate ranges can be provided in percents with respect to grid dimensions (if unknown to user) with ```--xzoom``` and ```--yzoom```:
 
 ```
 python polygon_zoom.py -i /global/work/jsk/S800/norseas_800m_avg.nc_2006051212 -v h --xzoom 80:95 --yzoom 5:20 --var_min 217 --var_max 533 
+```
+
+The list of all options can be requested with ```-h``` prefix:
+```
+[mitya@stallo-2 pytools_git]$ python polygon_zoom.py -h
+usage: polygon_zoom.py [-h] [--ref_datetime REF_DATETIME REF_DATETIME]
+                       [--contourf {yes,no}] [-i INF] [-v VARIABLE]
+                       [--f {s,d}] [--time_rec TIME_REC] [--time TIME]
+                       [--vert VERT] [--xzoom XZOOM] [--yzoom YZOOM]
+                       [--xrange XRANGE] [--yrange YRANGE] [--var_min VAR_MIN]
+                       [--var_max VAR_MAX]
+
+polygon zoom
+
+optional arguments:
+  -h, --help            show this help message and exit
+  --ref_datetime REF_DATETIME REF_DATETIME
+                        reference date time: 1970-01-01 00:00:00
+  --contourf {yes,no}   colormesh or contourf
+  -i INF                input file
+  -v VARIABLE           variable
+  --f {s,d}             time - seconds or days
+  --time_rec TIME_REC   time records name - ocean_time, clim_time, time, etc
+  --time TIME           time counter
+  --vert VERT           vertical coordinate number
+  --xzoom XZOOM         zoom along x direction, range is defined in percents
+  --yzoom YZOOM         zoom along y direction, range is defined in percents
+  --xrange XRANGE       zoom along x direction
+  --yrange YRANGE       zoom along y direction
+  --var_min VAR_MIN     minimum value of variable
+  --var_max VAR_MAX     max value of variable
+
 ```
