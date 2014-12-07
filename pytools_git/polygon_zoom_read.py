@@ -39,6 +39,20 @@ dest='inf',
 action="store"
 )
 parser.add_argument(
+'--pout', 
+help='output polygon file', 
+dest='pout', 
+action="store",
+default=None
+)
+parser.add_argument(
+'--pin', 
+help='input polygon file', 
+dest='pin', 
+action="store",
+default=None
+)
+parser.add_argument(
 '-v', 
 help='variable', 
 dest ='variable', 
@@ -319,6 +333,7 @@ class LineBuilder:
         self.y_0 = y_0
         self.xs = list(line.get_xdata())
         self.ys = list(line.get_ydata())
+        self.wout = 0
         self.cid = line.figure.canvas.mpl_connect('button_press_event', self)
  
 
@@ -332,6 +347,23 @@ class LineBuilder:
             self.line.figure.canvas.draw()
         if  event.button == 3:
             vertices=zip(self.xs,self.ys)
+            if args.pout != None:
+                try:
+                    out_file = open(args.pout+"_"+str(self.wout), "w")
+                except IOError:
+                    #e = sys.exc_info()[0]
+                    #print e
+                    print "cannot create file SEGMENTS in this directory, you don't have write permission here  - creating it in your home ~/segments"
+                    out_file = open(os.path.expanduser('~/'+args.pout+"_"+str(self.wout)), "w")
+
+                for i in vertices:
+                    string = "("+str(x_0+i[0])+","+str(y_0+i[1])+")\n"
+                    out_file.write(string)
+                out_file.close()
+                self.wout=self.wout+1
+            else:
+                pass
+            
             if len(self.xs) > 1:
                 cycle=vertices
                 cycle.append((self.xs[0],self.ys[0]))
@@ -463,89 +495,210 @@ except:
 f.close()
 
 
-
-if args.xrange != None or args.yrange != None :
-    x_range="0:"+str(ncvar.shape[1])
-    y_range="0:"+str(ncvar.shape[0])
-    if args.xrange != None and args.yrange != None :
-        x_range = args.xrange
-        y_range = args.yrange
- 
-    else:
-        if args.xrange == None:
-            y_range = args.yrange
-        else:
-            x_range = args.xrange
-
-else:
-        x_range = str(int(float(args.xzoom.split(':')[0])*ncvar.shape[1]/100.))+":"+str(int(float(args.xzoom.split(':')[1])*ncvar.shape[1]/100.))
-        y_range = str(int(float(args.yzoom.split(':')[0])*ncvar.shape[0]/100.))+":"+str(int(float(args.yzoom.split(':')[1])*ncvar.shape[0]/100.))
-
-x_0 = int(float(x_range.split(':')[0]))
-y_0 = int(float(y_range.split(':')[0]))
-lat = lat_meta[int(float(y_range.split(':')[0])):int(float(y_range.split(':')[1])), int(float(x_range.split(':')[0])):int(float(x_range.split(':')[1]))]
-lon = lon_meta[int(float(y_range.split(':')[0])):int(float(y_range.split(':')[1])), int(float(x_range.split(':')[0])):int(float(x_range.split(':')[1]))]
-
-fillval = 1e+36
-mx = ma.masked_outside(ncvar, -fillval,fillval)[int(float(y_range.split(':')[0])):int(float(y_range.split(':')[1])), int(float(x_range.split(':')[0])):int(float(x_range.split(':')[1]))]
-
-
 import matplotlib.pyplot as plt
 from pylab import *
 from matplotlib import colors, cm
 
 cmap=plt.cm.spectral
-fig_main, ax_main = plt.subplots()
+
+#either new plot or from txt polygon
+if args.pin == None:
+    if args.xrange != None or args.yrange != None :
+        x_range="0:"+str(ncvar.shape[1])
+        y_range="0:"+str(ncvar.shape[0])
+        if args.xrange != None and args.yrange != None :
+            x_range = args.xrange
+            y_range = args.yrange
+ 
+        else:
+            if args.xrange == None:
+                y_range = args.yrange
+            else:
+                x_range = args.xrange
+
+    else:
+        x_range = str(int(float(args.xzoom.split(':')[0])*ncvar.shape[1]/100.))+":"+str(int(float(args.xzoom.split(':')[1])*ncvar.shape[1]/100.))
+        y_range = str(int(float(args.yzoom.split(':')[0])*ncvar.shape[0]/100.))+":"+str(int(float(args.yzoom.split(':')[1])*ncvar.shape[0]/100.))
+
+    x_0 = int(float(x_range.split(':')[0]))
+    y_0 = int(float(y_range.split(':')[0]))
+    lat = lat_meta[int(float(y_range.split(':')[0])):int(float(y_range.split(':')[1])), int(float(x_range.split(':')[0])):int(float(x_range.split(':')[1]))]
+    lon = lon_meta[int(float(y_range.split(':')[0])):int(float(y_range.split(':')[1])), int(float(x_range.split(':')[0])):int(float(x_range.split(':')[1]))]
+
+    fillval = 1e+36
+    mx = ma.masked_outside(ncvar, -fillval,fillval)[int(float(y_range.split(':')[0])):int(float(y_range.split(':')[1])), int(float(x_range.split(':')[0])):int(float(x_range.split(':')[1]))]
+    fig_main, ax_main = plt.subplots()
 
 #main plot
-try:
-    p=plt.imshow(mx, cmap=cmap, origin='lower', interpolation='nearest');plt.colorbar()     
-except ValueError:
-    e = sys.exc_info()[0]
-    print e
-    print "ERROR: possibly out of range: xrange yrange"
-    print "yrange should be within : ", ncvar.shape[0]
-    print "xrange should be within : ", ncvar.shape[1]
-    print "your range for xrange :", args.xrange
-    print "your range for yrange :", args.yrange
-
-    sys.exit()
+    try:
+        p=plt.imshow(mx, cmap=cmap, origin='lower', interpolation='nearest');plt.colorbar()     
+    except ValueError:
+        e = sys.exc_info()[0]
+        print e
+        print "ERROR: possibly out of range: xrange yrange"
+        print "yrange should be within : ", ncvar.shape[0]
+        print "xrange should be within : ", ncvar.shape[1]
+        print "your range for xrange :", args.xrange
+        print "your range for yrange :", args.yrange
+        
+        sys.exit()
 
 
 #format axes
-if args.var_min or args.var_max:
-     if args.var_min and args.var_max:
-          if args.var_min < args.var_max:
-               p.set_clim(float(args.var_min), float(args.var_max))
-          else:
-               print 'incorrect var_min shoud be less than var_max, defaults then'
-               pass
-     else:
-          p.set_clim(args.var_min, args.var_max)
+    if args.var_min or args.var_max:
+        if args.var_min and args.var_max:
+            if args.var_min < args.var_max:
+                p.set_clim(float(args.var_min), float(args.var_max))
+            else:
+                print 'incorrect var_min shoud be less than var_max, defaults then'
+                pass
+        else:
+            p.set_clim(args.var_min, args.var_max)
+    else:
+        pass
+
+    x_tick, y_tick, x_label, y_label = [],[],[],[]
+    for v in np.linspace(0,  int(y_range.split(':')[1])-y_0-1, num = 11):
+        y_tick.append(v)
+        y_label.append(str(int(y_0+v)))
+    for v in np.linspace(0,  int(x_range.split(':')[1])-x_0-1, num = 11):
+        x_tick.append(v)
+        x_label.append(str(int(x_0+v)))
+    ax_main.set_xticks(x_tick)
+    ax_main.set_xticklabels(x_label, rotation=30)
+    ax_main.set_yticks(y_tick)
+    ax_main.set_yticklabels(y_label)
+
+    plt.axis('tight')
+    ax_main.set_title(args.variable+' '+ date_time(meta[1][args.time]))
+    ax = fig_main.add_subplot(111)
+    line, = ax.plot([], [])  # empty line 
+    linebuilder = LineBuilder(line, mx, lat, lon, x_0, y_0)
 else:
-     pass
+    x_0, y_0 = 0,0
+    lat = lat_meta
+    lon = lon_meta
+    fillval = 1e+36
+    mx = ma.masked_outside(ncvar, -fillval,fillval)
+    try:
+        file = open(args.pin,"r")
+    except IOError:
+        print  sys.exc_info()[0]
+        print "there is no file ", args.pin, " in the current directory"
+        sys.exit()
+    xs,ys=[],[]
+    for line in file:
+        i =line.replace("(","").replace(")","").replace(","," ")
+        print i.split()
+        xs.append(int(float(i.split()[0])))
+        ys.append(int(float(i.split()[1])))
+    file.close()
+    vertices=zip(xs,ys)
+    if len(xs) > 1:
+        cycle=vertices
+        cycle.append((xs[0],ys[0]))
+        fig_line = plt.figure(figsize=(22, 8))
+        ax_line = fig_line.add_subplot(121)
+              
+        lat_vert, lon_vert,vert,ncv,absx,lx,ly =[],[],[],[],[],[],[]
+        label_vert=[]
+                #---------------Line plot----------------------------
+        for i in range(0,len(xs)):
+            points=get_line(int(round(cycle[i][0])), int(round(cycle[i][1])), int(round(cycle[i+1][0])),int(round(cycle[i+1][1])))
+            for j in points:
+                lx.append(j[0])
+                ly.append(j[1])
+                ncv.append(mx[j[1],j[0]])
+                lat_vert.append(lat[j[1],j[0]])
+                lon_vert.append(lon[j[1],j[0]])
+                if len(lx) ==1:
+                    absx.append(lx[0])
+                else:
+                    absx.append(absx[-1]+int(sqrt((lx[-1]-lx[-2])**2+(ly[-1]-ly[-2])**2)))
+            if len(vert)==0:
+                vert.append((absx[0],lat_vert[0],lon_vert[0]))
+                vert.append((absx[-1],lat_vert[-1],lon_vert[-1]))
+            else:
+                vert.append((absx[-1],lat_vert[-1],lon_vert[-1]))
 
-x_tick, y_tick, x_label, y_label = [],[],[],[]
-for v in np.linspace(0,  int(y_range.split(':')[1])-y_0-1, num = 11):
-    y_tick.append(v)
-    y_label.append(str(int(y_0+v)))
-for v in np.linspace(0,  int(x_range.split(':')[1])-x_0-1, num = 11):
-    x_tick.append(v)
-    x_label.append(str(int(x_0+v)))
-ax_main.set_xticks(x_tick)
-ax_main.set_xticklabels(x_label, rotation=30)
-ax_main.set_yticks(y_tick)
-ax_main.set_yticklabels(y_label)
+                #Line plot parameters and line plot itself
 
-plt.axis('tight')
-ax_main.set_title(args.variable+' '+ date_time(meta[1][args.time]))
+        ncv = np.asarray(ncv)
+        r_ncv = ncv[~np.isnan(ncv)]
+        if len(r_ncv) != 0:
+            ax_line.axis([min(absx)-(max(absx)-min(absx))/20., max(absx)+(max(absx)-min(absx))/20., min(r_ncv), max(r_ncv)+(max(r_ncv)-min(r_ncv))/20.])
+        else:
+            pass
+        x_tick=[]
+        x_label=[]
+        if len(vert) > 1:
+            for v in vert:
+                x_tick.append(v[0])
+                x_label.append('('+str('%.1f' % v[1])+','+str('%.1f' % v[2])+')')
+              
+        else:
+            pass
+        ax_line.set_xticks(x_tick)
+        ax_line.set_xticklabels(x_label, rotation=30, fontsize=8)
+        ax_line.xaxis.grid(True)
+        ax_line.yaxis.grid(True)
+        ax_line.plot(absx,ncv)
 
 
-ax = fig_main.add_subplot(111)
 
-line, = ax.plot([], [])  # empty line 
 
-linebuilder = LineBuilder(line, mx, lat, lon, x_0, y_0)
+                # Polygon mask
+        mask_polygon = np.zeros(( np.amax(np.asarray(ly))-np.amin(np.asarray(ly))+1, np.amax(np.asarray(lx))-np.amin(np.asarray(lx))+1))
+        poly_vert=[]
+        for i in vertices:
+            poly_vert.append((i[1]-np.amin(np.asarray(ly)),i[0]-np.amin(np.asarray(lx))))
+            
+        path = Path(poly_vert)
+        mx_slice = mx[(min(np.asarray(ly))-1):(max(np.asarray(ly))), (min(np.asarray(lx))-1):(max(np.asarray(lx)))]
+        for index, val in np.ndenumerate(mx_slice):
+            if path.contains_point(index)==1:
+                mask_polygon[index]=1
+            else:
+                pass
 
+                #polygon plot
+        ax_zoom = fig_line.add_subplot(122)
+        x_tick, y_tick, x_label, y_label = [],[],[],[]
+        for v in np.linspace(0,  np.amax(np.asarray(ly))-np.amin(np.asarray(ly)), num = 21):
+            y_tick.append(v)
+            y_label.append(str(int(y_0+v+ np.amin(np.asarray(ly)))))
+        for v in np.linspace(0,  np.amax(np.asarray(lx))-np.amin(np.asarray(lx)), num = 21):
+            x_tick.append(v)
+            x_label.append(str(int(x_0+v+ np.amin(np.asarray(lx)))))
+        ax_zoom.set_xticks(x_tick)
+        ax_zoom.set_xticklabels(x_label, rotation=30)
+        ax_zoom.set_yticks(y_tick)
+        ax_zoom.set_yticklabels(y_label)
+        mx_slice_masked = ma.masked_where(mask_polygon==0,mx_slice)
+        mx_slice_out = ma.masked_where(mask_polygon==1,mx_slice)
+        lvls = np.linspace(np.amin(mx_slice_masked),np.amax(mx_slice_masked),num=21)
+        print "the following arguments can be passed to the script for further zooming if needed:"
+        print "--yrange ", str(y_0+min(np.asarray(ly)))+":"+str(y_0+max(np.asarray(ly))), " --xrange ", str(x_0+min(np.asarray(lx)))+":"+str(x_0+max(np.asarray(lx))), " --var_min ", np.amin(mx_slice_masked), " --var_max ", np.amax(mx_slice_masked)
+        cmap_zoom=plt.cm.spectral 
+        cmap_out = plt.cm.Greys
+        
+        if args.contourf == "yes":
+            slice_mesh=ax_zoom.contourf(mx_slice_masked,levels=lvls, cmap=cmap_zoom)
+            slice_mesh_out=ax_zoom.contourf(mx_slice_out,levels=lvls, cmap=cmap_out, vmin=np.amin(mx_slice_masked), vmax=np.amax(mx_slice_masked))
+        else:
+            slice_mesh=ax_zoom.pcolormesh(mx_slice_masked, cmap=cmap_zoom)
+            slice_out=ax_zoom.pcolormesh(mx_slice_out, cmap=cmap_out, vmin=np.amin(mx_slice_masked), vmax=np.amax(mx_slice_masked))
+        for vert in vertices:
+            txt = plt.text(round(vert[0])-min(np.asarray(lx)), round(vert[1])-min(np.asarray(ly)), "("+str('%.1f' %  lat[(round(vert[1]),round(vert[0]))])+","+str('%.1f' % lon[(round(vert[1]),round(vert[0]))])+")", fontsize=8)
+            txt.set_bbox(dict(color='white', alpha=0.5, edgecolor='red'))
+
+        plt.axis('tight')
+                # info at polygon vertices 
+        box = ax_zoom.get_position()
+        ax_zoom.set_position([box.x0*1.05, box.y0, box.width, box.height])
+        axColor = plt.axes([box.x0 + box.width * 1.16, box.y0, 0.01, box.height])
+        plt.colorbar(slice_mesh, cax = axColor, ticks=lvls, orientation="vertical")
+    else:
+        pass
 
 plt.show()
