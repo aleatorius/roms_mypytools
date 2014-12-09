@@ -82,14 +82,6 @@ type=int,
 default=0
 )
 parser.add_argument(
-'--vert', 
-help='vertical coordinate number', 
-dest ='vert', 
-action="store", 
-type=int, 
-default=34
-)
-parser.add_argument(
 '--xzoom', 
 help='zoom along x direction, range is defined in percents', 
 dest ='xzoom', 
@@ -247,22 +239,19 @@ def extract_lat_lon(inf):
         print "there are no coordinates with names", coords
 
     return lat, lon
-def extract(inf, variable, time, vert):
+
+def extract_vertical(inf, variable, time):
      f = inf
      if str(variable) in f.variables.keys():
-          #print '\n In the file', inf
+  #        print '\n In the file', inf
           print 'variable', variable, 'exists'
           ncvar = unpack(f.variables[variable][time,:])
-          print 'and its dimension equals:', size(ncvar.shape)+1
-          if size(ncvar.shape) == 3:
-               ncvar = unpack(f.variables[variable][time,vert,:])
           if size(ncvar.shape) == 1:
-               print 'possibly there is no time dimension, so it is shown as it is'
-               ncvar = unpack(f.variables[variable])
+              print 'no time or vertical dimensions'
+              ncvar = unpack(f.variables[variable])
           else:
-               pass
+              pass
           print 'the grid dimensions of requested variable:', ncvar.shape
-
      else:
           print 'provided variable doesnt exists, choose from the list:\n'
           print_list(f.variables.keys())          
@@ -280,14 +269,49 @@ def extract(inf, variable, time, vert):
              #e = sys.exc_info()[0]
              print "key error, trying another name for time record"
              continue
-     print result
+         print result
      if result == False:
          print "there is no time var with names", times
-         exit()
+         sys.exit()
      else:
          pass
-
      return ncvar, ot
+
+def extract_vert(inf, inv):
+#for 1d array
+     f = inf
+     if str(inv) in f.variables.keys():
+#          print '\n In the file', inf
+          print 'variable', inv, 'exists'
+          ncvar = unpack(f.variables[inv])
+          print 'the grid dimensions of requested variable:', ncvar.shape
+
+     else:
+          print 'provided variable doesnt exists, choose from the list:\n'
+          print_list(f.variables.keys())          
+          f.close()
+          sys.exit()
+
+     return ncvar
+
+
+
+
+def z_w_a(zeta,h,s_w, hc, Cs_w,Np, Vtransform):
+    z_w = zeros((int(Np),h.shape[0],h.shape[1]))
+    if Vtransform == 2 or Vtransform == 4:
+        for k in range(Np):
+            z0 = (hc * s_w[k]*np.ones(h.shape) + h*Cs_w[k])/(hc + h)
+            z_w[k]  = zeta + (zeta + h)*z0
+    elif Vtransform == 1:
+        for k in range(Np):
+            z0 = hc * s_w[k]*np.ones(h.shape) + (h - hc*np.ones(h.shape)) * Cs_w[k]
+            z_w[k] = z0 + zeta * (np.ones(h.shape) + z0/h)
+    return z_w
+
+
+
+
 # Bresenham's line algorithm (somebody' python implementation from the web)
 def get_line(x1, y1, x2, y2):
     points = []
@@ -328,9 +352,10 @@ def get_line(x1, y1, x2, y2):
 #event handler - original sample is taken from matplotlib examples (LineBuilder event handler)
 
 class LineBuilder:
-    def __init__(self, line, mx, lat, lon, x_0, y_0):
+    def __init__(self, line, mx, current_date, lat, lon, x_0, y_0):
         self.line = line
         self.mx = mx
+        self.current_date = current_date
         self.lat = lat
         self.lon = lon
         self.x_0 = x_0
@@ -462,7 +487,8 @@ class LineBuilder:
                 else:
                     slice_mesh=ax_zoom.pcolormesh(mx_slice_masked, cmap=cmap_zoom)
                     slice_out=ax_zoom.pcolormesh(mx_slice_out, cmap=cmap_out, vmin=np.amin(mx_slice_masked), vmax=np.amax(mx_slice_masked))
-                ax_zoom.set_title(args.variable+' '+ date_time(meta[1][args.time])+'\n '+str(np.sum(mx_slice_masked)))
+                
+                ax_zoom.set_title(args.variable+' '+ date_time(self.current_date)+'\n '+str(np.sum(mx_slice_masked)))
                 for vert in vertices:
                     txt = plt.text(round(vert[0])-min(np.asarray(lx)), round(vert[1])-min(np.asarray(ly)), "("+str('%.1f' %  lat[(round(vert[1]),round(vert[0]))])+","+str('%.1f' % lon[(round(vert[1]),round(vert[0]))])+")", fontsize=8)
                     txt.set_bbox(dict(color='white', alpha=0.5, edgecolor='red'))
@@ -487,77 +513,14 @@ class LineBuilder:
             line.figure.canvas.mpl_disconnect(self.cid)
             exit()
 
-def extract_vertical(inf, variable, time):
-     f = inf
-     if str(variable) in f.variables.keys():
-  #        print '\n In the file', inf
-          print 'variable', variable, 'exists'
-          ncvar = unpack(f.variables[variable][time,:])
-     else:
-          print 'provided variable doesnt exists, choose from the list:\n'
-          print_list(f.variables.keys())          
-          f.close()
-          sys.exit()
-     times = (args.time_rec, "time", "clim_time", "bry_time")
-     result = False
-     for t in times:
-         try:
-             print t
-             ot = unpack(f.variables[str(t)])  
-             result = True
-             break
-         except KeyError:
-             #e = sys.exc_info()[0]
-             print "key error, trying another name for time record"
-             continue
-         print result
-     if result == False:
-         print "there is no time var with names", times
-         sys.exit()
-     else:
-         pass
-     return ncvar, ot
 
-def extract_vert(inf, inv):
-     f = inf
-     if str(inv) in f.variables.keys():
-#          print '\n In the file', inf
-          print 'variable', inv, 'exists'
-          ncvar = unpack(f.variables[inv])
-          print 'the grid dimensions of requested variable:', ncvar.shape
-
-     else:
-          print 'provided variable doesnt exists, choose from the list:\n'
-          print_list(f.variables.keys())          
-          f.close()
-          sys.exit()
-
-     return ncvar
-
-
-
-
-def z_w_a(zeta,h,s_w, hc, Cs_w,Np, Vtransform):
-    z_w = zeros((int(Np),h.shape[0],h.shape[1]))
-    if Vtransform == 2 or Vtransform == 4:
-        for k in range(Np):
-            z0 = (hc * s_w[k]*np.ones(h.shape) + h*Cs_w[k])/(hc + h)
-            z_w[k]  = zeta + (zeta + h)*z0
-    elif Vtransform == 1:
-#not tested
-        for k in range(Np):
-            z0 = hc * s_w[k]*np.ones(h.shape) + (h - hc*np.ones(h.shape)) * Cs_w[k]
-            z_w[k] = z0 + zeta * (np.ones(h.shape) + z0/h)
-    return z_w
 
 
 #extract data from netcdf
 f = Dataset(args.inf)
-meta =  extract(f, args.variable, args.time, args.vert)
-meta_trans = extract_vertical(f, args.variable, args.time)[0]
-meta =  extract(f, args.variable, args.time, args.vert)
-ze =  extract(f, "zeta", args.time, args.vert)[0]
-mask_rho =  extract(f, "mask_rho", args.time, args.vert)[0]
+meta_trans, current_date  = extract_vertical(f, args.variable, args.time)
+ze =  extract_vertical(f, "zeta", args.time)[0]
+mask_rho =  extract_vertical(f, "mask_rho", args.time)[0]
 zeta = ma.masked_outside(ze, -1e+36,1e+36)
 Cs_r = extract_vert(f, 'Cs_r')
 s_rho = extract_vert(f, 's_rho')
@@ -573,13 +536,13 @@ print Np, "Np", N, "N"
 #theta_b = extract_vert(args.inf, 'theta_b')
 hc= extract_vert(f, 'hc')
 #print Vtransform, Vstretching, N,Tcline, hc, theta_s, theta_b
-h_m =  extract(f, "h", args.time, args.vert)[0]
+h_m =  extract_vertical(f, "h", args.time)[0]
 h = ma.masked_outside(h_m, -1e+36,1e+36)
 try:
     lat_meta, lon_meta = extract_lat_lon(f)
 except:
     print "no lat lon coordinates with names lat_rho and lon_rho in this file, putting zeros"
-    lat_meta, lon_meta=np.zeros(ncvar.shape), np.zeros(ncvar.shape)
+    lat_meta, lon_meta=np.zeros(h.shape), np.zeros(h.shape)
 f.close()
 
 
@@ -621,7 +584,9 @@ if args.pin == None:
     lon = lon_meta[int(float(y_range.split(':')[0])):int(float(y_range.split(':')[1])), int(float(x_range.split(':')[0])):int(float(x_range.split(':')[1]))]
 
     fillval = 1e+36
+
     mx = ma.masked_outside(ncvar, -fillval,fillval)[int(float(y_range.split(':')[0])):int(float(y_range.split(':')[1])), int(float(x_range.split(':')[0])):int(float(x_range.split(':')[1]))]
+
     fig_main, ax_main = plt.subplots()
 
 #main plot
@@ -665,10 +630,11 @@ if args.pin == None:
     ax_main.set_yticklabels(y_label)
 
     plt.axis('tight')
-    ax_main.set_title(args.variable+' '+ date_time(meta[1][args.time])+'\n '+str(np.sum(mx)))
+    ax_main.set_title(args.variable+' '+ date_time(current_date[args.time])+'\n '+str(np.sum(mx)))
     ax = fig_main.add_subplot(111)
     line, = ax.plot([], [])  # empty line 
-    linebuilder = LineBuilder(line, mx, lat, lon, x_0, y_0)
+    #Interactive functions
+    linebuilder = LineBuilder(line, mx, current_date[args.time], lat, lon, x_0, y_0)
 else:
     x_0, y_0 = 0,0
     lat = lat_meta
@@ -783,7 +749,7 @@ else:
         else:
             slice_mesh=ax_zoom.pcolormesh(mx_slice_masked, cmap=cmap_zoom)
             slice_out=ax_zoom.pcolormesh(mx_slice_out, cmap=cmap_out, vmin=np.amin(mx_slice_masked), vmax=np.amax(mx_slice_masked))
-        ax_zoom.set_title(args.variable+' '+ date_time(meta[1][args.time])+'\n '+str(np.sum(mx_slice_masked)))
+        ax_zoom.set_title(args.variable+' '+ date_time(current_date[args.time])+'\n '+str(np.sum(mx_slice_masked)))
         for vert in vertices:
             txt = plt.text(round(vert[0])-min(np.asarray(lx)), round(vert[1])-min(np.asarray(ly)), "("+str('%.1f' %  lat[(round(vert[1]),round(vert[0]))])+","+str('%.1f' % lon[(round(vert[1]),round(vert[0]))])+")", fontsize=8)
             txt.set_bbox(dict(color='white', alpha=0.5, edgecolor='red'))
