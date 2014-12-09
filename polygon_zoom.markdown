@@ -2,6 +2,7 @@
 
 * [polygon_zoom.py](https://source.uit.no/mitya/pytools_git/blob/master/polygon_zoom.py) 
 * [polygon_zoom_read.py](https://source.uit.no/mitya/pytools_git/blob/master/polygon_zoom_read.py) 
+* [polygon_zoom_int.py](https://source.uit.no/mitya/pytools_git/blob/master/polygon_zoom_int.py) 
 
 #### Description:
 
@@ -34,7 +35,19 @@ python polygon_zoom_read.py -i /global/work/jsk/S800/norseas_800m_avg.nc_2006051
 In this way the script reads from a previously created txt file```foo_1``` the vertices of a polygon and shows a plot, which is not interactive.
 
 If prefixes ```--pout``` and ```--pin``` are not provided, then ```polygon_zoom_read.py``` is completely identical to ```polygon_zoom.py``` (Because ```polygon_zoom_read.py``` looks a bit messier - I decided to keep ```polygon_zoom.py```)
+
+* [polygon_zoom_int.py](https://source.uit.no/mitya/pytools_git/blob/master/polygon_zoom_int.py) 
+
+This tool deals with vertically integrated variable (thus it should have vertical dimension). Mesh plot presents integrated variable on the grid. In usage this script is almost identical to [polygon_zoom_read.py](https://source.uit.no/mitya/pytools_git/blob/master/polygon_zoom_read.py).  
+Also it prints in the title the "mass" of variable in the area (whole area or polygonal part of it). This value should be scaled afterwards accordingly to horizontal resolution. In the script it is calculating taking a cell area as a dimensionless unit. 
+```
+python polygon_zoom_int.py -i /global/work/mitya/run/Arctic-20km/ocean_rst_20051212.nc -v phytoplankton  --pout s &
+```
 ### Sample outputs and usages:
+
+```
+python polygon_zoom.py -i /global/work/jsk/S800/norseas_800m_avg.nc_2006051212 -v temp
+```
 
 ![poly_zoom](poly0.png)
 
