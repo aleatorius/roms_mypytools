@@ -1,4 +1,4 @@
- #!/usr/bin/env python 
+#!/usr/bin/env python 
 ##!/home/ntnu/mitya/virt_env/virt1/bin/python -B
 ## Dmitry Shcherbin, 2014.12.05
 import numpy as np
@@ -16,6 +16,14 @@ parser = argparse.ArgumentParser(
 description='polygon zoom'
 )
 
+parser.add_argument(
+'--mask', 
+help='rho mask', 
+dest='mask',
+choices=("yes","no"), 
+action="store", 
+default="no"
+)
 parser.add_argument(
 '--ref_datetime', 
 help='reference date time: 1970-01-01 00:00:00', 
@@ -216,74 +224,55 @@ if not (args.variable):
     f.close()
     sys.exit()
 
-
 def unpack(ina):
-     outa = zeros(ina.shape)
-     outa[:] = ina[:]
-     return outa
+    if ina.ndim == 0:
+        print "is it scalar or 0d array?"
+        outa = ina[()]
+    else:
+        outa = zeros(ina.shape)
+        outa[:] = ina[:]
+    return outa
 
-def extract_lat_lon(inf):
-    f = inf
-    #list of possible names in tuples
-    coords = (("lat_rho","lon_rho"),("lat", "lon"))
-    result = False
-    for t in coords:
-        try:
-            print t
-            lat = unpack(f.variables[str(t[0])])  
-            lon = unpack(f.variables[str(t[1])])  
-            result = True
-            break
-        except KeyError:
-             #e = sys.exc_info()[0]
-            print "key error, trying another name for time record"
-            continue
-    print result
-    if result == False:
-        print "there are no coordinates with names", coords
 
-    return lat, lon
-def extract(inf, variable, time, vert):
-     f = inf
-     if str(variable) in f.variables.keys():
-          #print '\n In the file', inf
-          print 'variable', variable, 'exists'
-          ncvar = unpack(f.variables[variable][time,:])
-          print 'and its dimension equals:', size(ncvar.shape)+1
-          if size(ncvar.shape) == 3:
-               ncvar = unpack(f.variables[variable][time,vert,:])
-          if size(ncvar.shape) == 1:
-               print 'possibly there is no time dimension, so it is shown as it is'
-               ncvar = unpack(f.variables[variable])
-          else:
-               pass
-          print 'the grid dimensions of requested variable:', ncvar.shape
+def extract(f, variable, *dims):
+    # dims should be ordered: time, vert
+    # I assume 4d objects: time,vert, 2d grid
+    #          3d objects: time, 2d
+    #          2d objects: 2d grid, time independent - like bathymetry, mask, lat, lon
+    if str(variable) in f.variables.keys():
+        print 'variable', variable, 'exists'
+        ncvar = unpack(f.variables[variable])
+        print size(ncvar.shape), ncvar.shape 
+        if len(dims) == 2:
+            if size(ncvar.shape) == 4:
+                ncvar = ncvar[dims]
+                print ncvar.shape, "snap shot of 4d var at the surface layer"
+            elif size(ncvar.shape) == 3:
+                dims = list(dims)
+                del dims[-1]
+                ncvar = ncvar[tuple(dims)]
+                print ncvar.shape, "snap shot of 3d var"
+            else: 
+                print variable, " is not a 4d or 3d var, so extracted as it is"
+        elif len(dims) == 1:
+            if size(ncvar.shape) == 4:
+                ncvar = ncvar[dims]
+                print ncvar.shape, "snap shot of 4d var"
+            elif size(ncvar.shape) == 3:
+                ncvar = ncvar[dims]
+                print ncvar.shape, "snap shot of 3d var"
+            else: 
+                print variable, " is not a 4d or 3d var, so extracted as it is"
+        else:
+            pass
+    else:
+        print 'provided variable ',variable, ' doesnt exists, choose from the list:\n'
+        print_list(f.variables.keys())          
+        raise ValueError('no variable in the list')
+    return ncvar
 
-     else:
-          print 'provided variable doesnt exists, choose from the list:\n'
-          print_list(f.variables.keys())          
-          f.close()
-          sys.exit()
-     times = (args.time_rec, "time", "clim_time", "bry_time")
-     result = False
-     for t in times:
-         try:
-             print t
-             ot = unpack(f.variables[str(t)])  
-             result = True
-             break
-         except KeyError:
-             #e = sys.exc_info()[0]
-             print "key error, trying another name for time record"
-             continue
-     print result
-     if result == False:
-         print "there is no time var with names", times
-         exit()
-     else:
-         pass
 
-     return ncvar, ot
+
 # Bresenham's line algorithm (somebody' python implementation from the web)
 def get_line(x1, y1, x2, y2):
     points = []
@@ -324,9 +313,10 @@ def get_line(x1, y1, x2, y2):
 #event handler - original sample is taken from matplotlib examples (LineBuilder event handler)
 
 class LineBuilder:
-    def __init__(self, line, mx, lat, lon, x_0, y_0):
+    def __init__(self, line, mx, time, lat, lon, x_0, y_0):
         self.line = line
         self.mx = mx
+        self.time = time
         self.lat = lat
         self.lon = lon
         self.x_0 = x_0
@@ -363,18 +353,16 @@ class LineBuilder:
                 self.wout=self.wout+1
             else:
                 pass
+            args.pout = "test"
             
             if len(self.xs) > 1:
                 cycle=vertices
                 cycle.append((self.xs[0],self.ys[0]))
-                fig_line = plt.figure(figsize=(22, 8))
-                ax_line = fig_line.add_subplot(121)
-              
                 lat_vert, lon_vert,vert,ncv,absx,lx,ly =[],[],[],[],[],[],[]
                 label_vert=[]
                 #---------------Line plot----------------------------
                 for i in range(0,len(self.xs)):
-                    points=get_line(int(round(cycle[i][0])), int(round(cycle[i][1])), int(round(cycle[i+1][0])),int(round(cycle[i+1][1])))
+                    points=get_line(int((cycle[i][0])), int((cycle[i][1])), int((cycle[i+1][0])),int((cycle[i+1][1])))
                     for j in points:
                         lx.append(j[0])
                         ly.append(j[1])
@@ -393,83 +381,30 @@ class LineBuilder:
 
                 #Line plot parameters and line plot itself
 
-                ncv = np.asarray(ncv)
-                r_ncv = ncv[~np.isnan(ncv)]
-                if len(r_ncv) != 0:
-                    ax_line.axis([min(absx)-(max(absx)-min(absx))/20., max(absx)+(max(absx)-min(absx))/20., min(r_ncv), max(r_ncv)+(max(r_ncv)-min(r_ncv))/20.])
-                else:
-                    pass
-                x_tick=[]
-                x_label=[]
-                if len(vert) > 1:
-                    for v in vert:
-                        x_tick.append(v[0])
-                        x_label.append('('+str('%.1f' % v[1])+','+str('%.1f' % v[2])+')')
-              
-                else:
-                    pass
-                ax_line.set_xticks(x_tick)
-                ax_line.set_xticklabels(x_label, rotation=30, fontsize=8)
-                ax_line.xaxis.grid(True)
-                ax_line.yaxis.grid(True)
-                ax_line.plot(absx,ncv)
-
-
-
 
                 # Polygon mask
-                mask_polygon = np.zeros(( np.amax(np.asarray(ly))-np.amin(np.asarray(ly))+1, np.amax(np.asarray(lx))-np.amin(np.asarray(lx))+1))
+                mask_polygon = np.zeros(( np.amax(np.asarray(ly))-np.amin(np.asarray(ly))+1, np.amax(np.asarray(lx))-np.amin(np.asarray(lx))+1 ))
                 poly_vert=[]
                 for i in vertices:
                     poly_vert.append((i[1]-np.amin(np.asarray(ly)),i[0]-np.amin(np.asarray(lx))))
             
                 path = Path(poly_vert)
-                mx_slice = mx[(min(np.asarray(ly))-1):(max(np.asarray(ly))), (min(np.asarray(lx))-1):(max(np.asarray(lx)))]
+                minx=min(np.asarray(lx))
+                miny=min(np.asarray(ly))
+                maxx=max(np.asarray(lx))
+                maxy=max(np.asarray(ly))
+           
+                print minx,maxx, miny,maxy
+                mx_slice = mx[(miny):(maxy+1), (minx):(maxx+1)]
                 for index, val in np.ndenumerate(mx_slice):
                     if path.contains_point(index)==1:
                         mask_polygon[index]=1
                     else:
                         pass
-
-                #polygon plot
-                ax_zoom = fig_line.add_subplot(122)
-                x_tick, y_tick, x_label, y_label = [],[],[],[]
-                for v in np.linspace(0,  np.amax(np.asarray(ly))-np.amin(np.asarray(ly)), num = 21):
-                    y_tick.append(v)
-                    y_label.append(str(int(y_0+v+ np.amin(np.asarray(ly)))))
-                for v in np.linspace(0,  np.amax(np.asarray(lx))-np.amin(np.asarray(lx)), num = 21):
-                    x_tick.append(v)
-                    x_label.append(str(int(x_0+v+ np.amin(np.asarray(lx)))))
-                ax_zoom.set_xticks(x_tick)
-                ax_zoom.set_xticklabels(x_label, rotation=30)
-                ax_zoom.set_yticks(y_tick)
-                ax_zoom.set_yticklabels(y_label)
                 mx_slice_masked = ma.masked_where(mask_polygon==0,mx_slice)
                 mx_slice_out = ma.masked_where(mask_polygon==1,mx_slice)
-                lvls = np.linspace(np.amin(mx_slice_masked),np.amax(mx_slice_masked),num=21)
-                print "the following arguments can be passed to the script for further zooming if needed:"
-                print "--yrange ", str(y_0+min(np.asarray(ly)))+":"+str(y_0+max(np.asarray(ly))), " --xrange ", str(x_0+min(np.asarray(lx)))+":"+str(x_0+max(np.asarray(lx))), " --var_min ", np.amin(mx_slice_masked), " --var_max ", np.amax(mx_slice_masked)
-                cmap_zoom=plt.cm.spectral 
-                cmap_out = plt.cm.Greys
-
-                if args.contourf == "yes":
-                    slice_mesh=ax_zoom.contourf(mx_slice_masked,levels=lvls, cmap=cmap_zoom)
-                    slice_mesh_out=ax_zoom.contourf(mx_slice_out,levels=lvls, cmap=cmap_out, vmin=np.amin(mx_slice_masked), vmax=np.amax(mx_slice_masked))
-                else:
-                    slice_mesh=ax_zoom.pcolormesh(mx_slice_masked, cmap=cmap_zoom)
-                    slice_out=ax_zoom.pcolormesh(mx_slice_out, cmap=cmap_out, vmin=np.amin(mx_slice_masked), vmax=np.amax(mx_slice_masked))
-                for vert in vertices:
-                    txt = plt.text(round(vert[0])-min(np.asarray(lx)), round(vert[1])-min(np.asarray(ly)), "("+str('%.1f' %  lat[(round(vert[1]),round(vert[0]))])+","+str('%.1f' % lon[(round(vert[1]),round(vert[0]))])+")", fontsize=8)
-                    txt.set_bbox(dict(color='white', alpha=0.5, edgecolor='red'))
-
-                plt.axis('tight')
-                # info at polygon vertices 
-                box = ax_zoom.get_position()
-                ax_zoom.set_position([box.x0*1.05, box.y0, box.width, box.height])
-                axColor = plt.axes([box.x0 + box.width * 1.16, box.y0, 0.01, box.height])
-                plt.colorbar(slice_mesh, cax = axColor, ticks=lvls, orientation="vertical")
-
-                #nullify arrays for next pick
+                plot = plot_mesh_and_line(mx_slice_masked,mx_slice_out,absx,ncv,lx,ly,x_0,y_0,vert, vertices, self.time)
+                print plot
                 self.xs = []
                 self.ys = []
                 plt.show()
@@ -483,15 +418,144 @@ class LineBuilder:
             exit()
 
 
+def plot_mesh_and_line(mx_slice_masked,mx_slice_out,absx,var_line,lx,ly,x_0,y_0,vert, vertices, time):
+    fig_line = plt.figure(figsize=(22, 8))
+    ax_line = fig_line.add_subplot(121)
+    ncv = np.asarray(var_line)
+    r_ncv = ncv[~np.isnan(ncv)]
+    if len(r_ncv) != 0:
+        ax_line.axis([min(absx)-(max(absx)-min(absx))/20., max(absx)+(max(absx)-min(absx))/20., min(r_ncv), max(r_ncv)+(max(r_ncv)-min(r_ncv))/20.])
+    else:
+        pass
+    x_tick=[]
+    x_label=[]
+    if len(vert) > 1:
+        for v in vert:
+            x_tick.append(v[0])
+            x_label.append('('+str('%.1f' % v[1])+','+str('%.1f' % v[2])+')')
+              
+    else:
+        pass
+    ax_line.set_xticks(x_tick)
+    ax_line.set_xticklabels(x_label, rotation=30, fontsize=8)
+    ax_line.xaxis.grid(True)
+    ax_line.yaxis.grid(True)
+    ax_line.plot(absx,ncv)
+
+    ax_zoom = fig_line.add_subplot(122)
+    x_tick, y_tick, x_label, y_label = [],[],[],[]
+    for v in np.linspace(0,  np.amax(np.asarray(ly))-np.amin(np.asarray(ly)), num = 21):
+        y_tick.append(v)
+        y_label.append(str(int(y_0+v+ np.amin(np.asarray(ly)))))
+    for v in np.linspace(0,  np.amax(np.asarray(lx))-np.amin(np.asarray(lx)), num = 21):
+        x_tick.append(v)
+        x_label.append(str(int(x_0+v+ np.amin(np.asarray(lx)))))
+    ax_zoom.set_xticks(x_tick)
+    ax_zoom.set_xticklabels(x_label, rotation=30)
+    ax_zoom.set_yticks(y_tick)
+    ax_zoom.set_yticklabels(y_label)
+
+    lvls = np.linspace(np.amin(mx_slice_masked),np.amax(mx_slice_masked),num=21)
+    print "the following arguments can be passed to the script for further zooming if needed:"
+    print "--yrange ", str(y_0+min(np.asarray(ly)))+":"+str(y_0+max(np.asarray(ly))), " --xrange ", str(x_0+min(np.asarray(lx)))+":"+str(x_0+max(np.asarray(lx))), " --var_min ", np.amin(mx_slice_masked), " --var_max ", np.amax(mx_slice_masked)
+    cmap_zoom=plt.cm.spectral 
+    cmap_out = plt.cm.Greys
+
+    if args.contourf == "yes":
+        slice_mesh=ax_zoom.contourf(mx_slice_masked,levels=lvls, cmap=cmap_zoom)
+        slice_mesh_out=ax_zoom.contourf(mx_slice_out,levels=lvls, cmap=cmap_out, vmin=np.amin(mx_slice_masked), vmax=np.amax(mx_slice_masked))
+    else:
+        slice_mesh=ax_zoom.pcolormesh(mx_slice_masked, cmap=cmap_zoom)
+        slice_out=ax_zoom.pcolormesh(mx_slice_out, cmap=cmap_out, vmin=np.amin(mx_slice_masked), vmax=np.amax(mx_slice_masked))
+        ax_zoom.set_title(args.variable+' '+ date_time(time))
+    for vert in vertices:
+        txt = plt.text((vert[0])-min(np.asarray(lx)), (vert[1])-min(np.asarray(ly)), "("+str('%.1f' %  lat[(int(vert[1]),int(vert[0]))])+","+str('%.1f' % lon[(int(vert[1]),int(vert[0]))])+")", fontsize=8)
+        txt.set_bbox(dict(color='white', alpha=0.5, edgecolor='red'))
+
+    plt.axis('tight')
+                # info at polygon vertices 
+    box = ax_zoom.get_position()
+    ax_zoom.set_position([box.x0*1.05, box.y0, box.width, box.height])
+    axColor = plt.axes([box.x0 + box.width * 1.16, box.y0, 0.01, box.height])
+    plt.colorbar(slice_mesh, cax = axColor, ticks=lvls, orientation="vertical")
+   
+
+
+    return True
+
+
+
 #extract data from netcdf
 f = Dataset(args.inf)
-meta = extract(f, args.variable, args.time, args.vert)
-ncvar = meta[0]
+if args.mask=="yes":
+    try:
+        mask_rho = extract(f,"mask_rho")
+    except ValueError as e:
+        print e.args, "mask is to be turned off"
+        args.mask="no"
+        pass
+else:
+    pass
+
 try:
-    lat_meta, lon_meta = extract_lat_lon(f)
-except:
-    print "no lat lon coordinates with names lat_rho and lon_rho in this file, putting zeros"
+    ncvar = extract(f, args.variable, args.time, args.vert)
+except ValueError as e:
+    print e.args
+    sys.exit()
+if size(ncvar.shape) != 2:
+    print "ERROR: cannot get a 2d mesh from: ", args.variable,", quitting"
+    sys.exit()
+else:
+    pass
+
+times = (args.time_rec, "time", "clim_time", "bry_time")
+result = False
+for t in times:
+    try:
+        print t
+        current_time = extract(f,t)  
+        result = True
+        break
+    except ValueError as e:
+        print e.args
+        print "key error, trying another name for time record"
+        continue
+print result
+if result == False:
+    print "there is no time var with names", times
+    current_time = np.zeros(int(args.time)+1)
+else:
+    pass
+print current_time, "time"
+
+#meta_arg = extract_arg(f, args.variable, args.time, args.vert)
+#print meta_arg[0].shape, "meta_arg"
+
+
+if args.mask=="no":
+    pass
+else:
+    ncvar = ma.masked_where(mask_rho==0, ncvar)
+
+coords = (("lat_rho","lon_rho"),("lat", "lon"))
+result = False
+for t in coords:
+    try:
+        print t
+        lat_meta, lon_meta = extract(f, t[0]), extract(f, t[1])
+        result = True
+        break
+    except ValueError as e:
+        #e = sys.exc_info()
+        print e.args
+        #print "key error, trying another name for time record"
+        continue
+print result
+if result == False:
+    print "there are no coordinates with names", coords
     lat_meta, lon_meta=np.zeros(ncvar.shape), np.zeros(ncvar.shape)
+
+
 f.close()
 
 
@@ -570,10 +634,12 @@ if args.pin == None:
     ax_main.set_yticklabels(y_label)
 
     plt.axis('tight')
-    ax_main.set_title(args.variable+' '+ date_time(meta[1][args.time]))
+    print date_time(current_time[args.time])
+    ax_main.set_title(args.variable+' '+ date_time(current_time[args.time]))
     ax = fig_main.add_subplot(111)
     line, = ax.plot([], [])  # empty line 
-    linebuilder = LineBuilder(line, mx, lat, lon, x_0, y_0)
+    linebuilder = LineBuilder(line, mx, current_time[args.time], lat, lon, x_0, y_0)
+    print args.pout
 else:
     x_0, y_0 = 0,0
     lat = lat_meta
@@ -597,14 +663,11 @@ else:
     if len(xs) > 1:
         cycle=vertices
         cycle.append((xs[0],ys[0]))
-        fig_line = plt.figure(figsize=(22, 8))
-        ax_line = fig_line.add_subplot(121)
-              
         lat_vert, lon_vert,vert,ncv,absx,lx,ly =[],[],[],[],[],[],[]
         label_vert=[]
                 #---------------Line plot----------------------------
         for i in range(0,len(xs)):
-            points=get_line(int(round(cycle[i][0])), int(round(cycle[i][1])), int(round(cycle[i+1][0])),int(round(cycle[i+1][1])))
+            points=get_line(int((cycle[i][0])), int((cycle[i][1])), int((cycle[i+1][0])),int((cycle[i+1][1])))
             for j in points:
                 lx.append(j[0])
                 ly.append(j[1])
@@ -623,82 +686,29 @@ else:
 
                 #Line plot parameters and line plot itself
 
-        ncv = np.asarray(ncv)
-        r_ncv = ncv[~np.isnan(ncv)]
-        if len(r_ncv) != 0:
-            ax_line.axis([min(absx)-(max(absx)-min(absx))/20., max(absx)+(max(absx)-min(absx))/20., min(r_ncv), max(r_ncv)+(max(r_ncv)-min(r_ncv))/20.])
-        else:
-            pass
-        x_tick=[]
-        x_label=[]
-        if len(vert) > 1:
-            for v in vert:
-                x_tick.append(v[0])
-                x_label.append('('+str('%.1f' % v[1])+','+str('%.1f' % v[2])+')')
-              
-        else:
-            pass
-        ax_line.set_xticks(x_tick)
-        ax_line.set_xticklabels(x_label, rotation=30, fontsize=8)
-        ax_line.xaxis.grid(True)
-        ax_line.yaxis.grid(True)
-        ax_line.plot(absx,ncv)
-
-
-
 
                 # Polygon mask
-        mask_polygon = np.zeros(( np.amax(np.asarray(ly))-np.amin(np.asarray(ly))+1, np.amax(np.asarray(lx))-np.amin(np.asarray(lx))+1))
+        mask_polygon = np.zeros(( np.amax(np.asarray(ly))-np.amin(np.asarray(ly))+1, np.amax(np.asarray(lx))-np.amin(np.asarray(lx))+1 ))
         poly_vert=[]
         for i in vertices:
             poly_vert.append((i[1]-np.amin(np.asarray(ly)),i[0]-np.amin(np.asarray(lx))))
             
         path = Path(poly_vert)
-        mx_slice = mx[(min(np.asarray(ly))-1):(max(np.asarray(ly))), (min(np.asarray(lx))-1):(max(np.asarray(lx)))]
+        minx=min(np.asarray(lx))
+        miny=min(np.asarray(ly))
+        maxx=max(np.asarray(lx))
+        maxy=max(np.asarray(ly))
+           
+        print minx,maxx, miny,maxy
+        mx_slice = mx[(miny):(maxy+1), (minx):(maxx+1)]
         for index, val in np.ndenumerate(mx_slice):
             if path.contains_point(index)==1:
                 mask_polygon[index]=1
             else:
                 pass
-
-                #polygon plot
-        ax_zoom = fig_line.add_subplot(122)
-        x_tick, y_tick, x_label, y_label = [],[],[],[]
-        for v in np.linspace(0,  np.amax(np.asarray(ly))-np.amin(np.asarray(ly)), num = 21):
-            y_tick.append(v)
-            y_label.append(str(int(y_0+v+ np.amin(np.asarray(ly)))))
-        for v in np.linspace(0,  np.amax(np.asarray(lx))-np.amin(np.asarray(lx)), num = 21):
-            x_tick.append(v)
-            x_label.append(str(int(x_0+v+ np.amin(np.asarray(lx)))))
-        ax_zoom.set_xticks(x_tick)
-        ax_zoom.set_xticklabels(x_label, rotation=30)
-        ax_zoom.set_yticks(y_tick)
-        ax_zoom.set_yticklabels(y_label)
         mx_slice_masked = ma.masked_where(mask_polygon==0,mx_slice)
         mx_slice_out = ma.masked_where(mask_polygon==1,mx_slice)
-        lvls = np.linspace(np.amin(mx_slice_masked),np.amax(mx_slice_masked),num=21)
-        print "the following arguments can be passed to the script for further zooming if needed:"
-        print "--yrange ", str(y_0+min(np.asarray(ly)))+":"+str(y_0+max(np.asarray(ly))), " --xrange ", str(x_0+min(np.asarray(lx)))+":"+str(x_0+max(np.asarray(lx))), " --var_min ", np.amin(mx_slice_masked), " --var_max ", np.amax(mx_slice_masked)
-        cmap_zoom=plt.cm.spectral 
-        cmap_out = plt.cm.Greys
-        
-        if args.contourf == "yes":
-            slice_mesh=ax_zoom.contourf(mx_slice_masked,levels=lvls, cmap=cmap_zoom)
-            slice_mesh_out=ax_zoom.contourf(mx_slice_out,levels=lvls, cmap=cmap_out, vmin=np.amin(mx_slice_masked), vmax=np.amax(mx_slice_masked))
-        else:
-            slice_mesh=ax_zoom.pcolormesh(mx_slice_masked, cmap=cmap_zoom)
-            slice_out=ax_zoom.pcolormesh(mx_slice_out, cmap=cmap_out, vmin=np.amin(mx_slice_masked), vmax=np.amax(mx_slice_masked))
-        for vert in vertices:
-            txt = plt.text(round(vert[0])-min(np.asarray(lx)), round(vert[1])-min(np.asarray(ly)), "("+str('%.1f' %  lat[(round(vert[1]),round(vert[0]))])+","+str('%.1f' % lon[(round(vert[1]),round(vert[0]))])+")", fontsize=8)
-            txt.set_bbox(dict(color='white', alpha=0.5, edgecolor='red'))
-
-        plt.axis('tight')
-                # info at polygon vertices 
-        box = ax_zoom.get_position()
-        ax_zoom.set_position([box.x0*1.05, box.y0, box.width, box.height])
-        axColor = plt.axes([box.x0 + box.width * 1.16, box.y0, 0.01, box.height])
-        plt.colorbar(slice_mesh, cax = axColor, ticks=lvls, orientation="vertical")
-    else:
-        pass
+        plot = plot_mesh_and_line(mx_slice_masked,mx_slice_out,absx,ncv,lx,ly,x_0,y_0,vert, vertices, current_time[args.time])
+        print plot
 
 plt.show()
