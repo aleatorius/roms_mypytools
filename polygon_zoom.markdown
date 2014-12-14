@@ -1,7 +1,6 @@
 #### Files:
 
-* [polygon_zoom.py](https://source.uit.no/mitya/pytools_git/blob/master/polygon_zoom.py) 
-* [polygon_zoom_read.py](https://source.uit.no/mitya/pytools_git/blob/master/polygon_zoom_read.py) 
+* [polygon_zoom.py](https://source.uit.no/mitya/pytools_git/blob/master/polygon_zoom.py)  
 * [polygon_zoom_int.py](https://source.uit.no/mitya/pytools_git/blob/master/polygon_zoom_int.py) 
 
 #### Description:
@@ -22,19 +21,15 @@ A right-click puts this process to the end and fires a window with two plots.
 
 The colorbar range is defined by interior points of the polygon area.
 
-* [polygon_zoom_read.py](https://source.uit.no/mitya/pytools_git/blob/master/polygon_zoom_read.py) 
+```
+python polygon_zoom.py -i /global/work/jsk/S800/norseas_800m_avg.nc_2006051212 -v temp --pout foo
+```
+Here it writes out txt-files for each polygon, a writing is activated by prefix ```-pout```, and files ```foo_0, foo_1, foo_2,...``` are created.
 
 ```
-python polygon_zoom_read.py -i /global/work/jsk/S800/norseas_800m_avg.nc_2006051212 -v temp --pout foo
-```
-This script writes out txt-files for each polygon, a writing is activated by prefix ```-pout```, and files ```foo_0, foo_1, foo_2,...``` are created.
-
-```
-python polygon_zoom_read.py -i /global/work/jsk/S800/norseas_800m_avg.nc_2006051212 -v temp --ref_datetime 1948-01-01 00:00:00 --pin foo_1 &
+python polygon_zoom.py -i /global/work/jsk/S800/norseas_800m_avg.nc_2006051212 -v temp --ref_datetime 1948-01-01 00:00:00 --pin foo_1 &
 ```
 In this way the script reads from a previously created txt file```foo_1``` the vertices of a polygon and shows a plot, which is not interactive.
-
-If prefixes ```--pout``` and ```--pin``` are not provided, then ```polygon_zoom_read.py``` is completely identical to ```polygon_zoom.py``` (Because ```polygon_zoom_read.py``` looks a bit messier - I decided to keep ```polygon_zoom.py```)
 
 * [polygon_zoom_int.py](https://source.uit.no/mitya/pytools_git/blob/master/polygon_zoom_int.py) 
 
@@ -110,39 +105,38 @@ The coordinate ranges can be provided in percents with respect to grid dimension
 ```
 python polygon_zoom.py -i /global/work/jsk/S800/norseas_800m_avg.nc_2006051212 -v h --xzoom 80:95 --yzoom 5:20 --var_min 217 --var_max 533 
 ```
+Usage of [polygon_zoom_int.py](https://source.uit.no/mitya/pytools_git/blob/master/polygon_zoom_int.py):
+
+```
+python polygon_zoom_int.py -i /global/work/mitya/run/Arctic-20km/archive_2005_cortemp/ocean_avg_2006_06_20_0052.nc -v phytoplankton  --pout s  &
+```
+
+![poly_zoom](phyt_zoom0.png)
+
+singular values on the west boundary can be zoomed out:
+
+![poly_zoom](phyt_zoom1.png)
+
+
+#### Masking:
+
+It is possible to turn on the mask with prefix ```--mask yes``` (it will work if there is a variable called ```mask_rho```) - it is useful for variables which land values are not filled with  ```1e+37```
+
+![poly_zoom](mask0.png)
+
+```
+python polygon_zoom.py -i /global/work/jsk/S800/norseas_800m_avg.nc_2005090112 -v h --yrange  461:602  --xrange  339:583  --var_min  10.0  --var_max  2062.53437468 --mask yes
+
+```
+
+![poly_zoom](mask1.png)
+
+#### Options
 
 The list of all options can be requested with ```-h``` prefix:
 ```
 [mitya@stallo-2 pytools_git]$ python polygon_zoom.py -h
-usage: polygon_zoom.py [-h] [--ref_datetime REF_DATETIME REF_DATETIME]
-                       [--contourf {yes,no}] [-i INF] [-v VARIABLE]
-                       [--f {s,d}] [--time_rec TIME_REC] [--time TIME]
-                       [--vert VERT] [--xzoom XZOOM] [--yzoom YZOOM]
-                       [--xrange XRANGE] [--yrange YRANGE] [--var_min VAR_MIN]
-                       [--var_max VAR_MAX]
 
-polygon zoom
-
-optional arguments:
-  -h, --help            show this help message and exit
-  --ref_datetime REF_DATETIME REF_DATETIME
-                        reference date time: 1970-01-01 00:00:00
-  --contourf {yes,no}   colormesh or contourf
-  -i INF                input file
-  -v VARIABLE           variable
-  --f {s,d}             time format - seconds or days with respect to reference date and time
-  --time_rec TIME_REC   time records name - ocean_time, clim_time, time, etc
-  --time TIME           time counter
-  --vert VERT           vertical coordinate number
-  --xzoom XZOOM         zoom along x direction, range is defined in percents
-  --yzoom YZOOM         zoom along y direction, range is defined in percents
-  --xrange XRANGE       zoom along x direction
-  --yrange YRANGE       zoom along y direction
-  --var_min VAR_MIN     minimum value of variable
-  --var_max VAR_MAX     max value of variable
-
-
-[mitya@stallo-2 pytools_git]$ python polygon_zoom_read.py -h
 usage: polygon_zoom_read.py [-h] [--ref_datetime REF_DATETIME REF_DATETIME]
                             [--contourf {yes,no}] [-i INF] [--pout POUT]
                             [--pin PIN] [-v VARIABLE] [--f {s,d}]
