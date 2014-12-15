@@ -11,19 +11,14 @@ import os.path
 import datetime
 from datetime import date, time
 from matplotlib.path import Path
-
+import matplotlib.pyplot as plt
+from pylab import *
+from matplotlib import colors, cm
 parser = argparse.ArgumentParser(
 description='polygon zoom'
 )
 
-parser.add_argument(
-'--mask', 
-help='rho mask', 
-dest='mask',
-choices=("yes","no"), 
-action="store", 
-default="no"
-)
+
 parser.add_argument(
 '--ref_datetime', 
 help='reference date time: 1970-01-01 00:00:00', 
@@ -273,8 +268,9 @@ def extract(f, variable, *dims):
 
 
 
-# Bresenham's line algorithm (somebody' python implementation from the web)
+
 def get_line(x1, y1, x2, y2):
+    # Bresenham's line algorithm (somebody' python implementation from the web)
     points = []
     issteep = abs(y2-y1) > abs(x2-x1)
     if issteep:
@@ -366,7 +362,7 @@ def var_to_line(mx,lat,lon,vertices,lx,ly,vertex):
   
     return absx, ncv, vert
 
-def plot_mesh_and_line(mx_slice_masked,mx_slice_out,absx,var_line,lx,ly,x_0,y_0,vert, vertices, time):
+def plot_mesh_and_line(mx_slice_masked,mx_slice_out,lat,lon,absx,var_line,lx,ly,x_0,y_0,vert, vertices, time):
     fig_line = plt.figure(figsize=(22, 8))
     ax_line = fig_line.add_subplot(121)
     ncv = np.asarray(var_line)
@@ -481,7 +477,7 @@ class LineBuilder:
                     out_file = open(os.path.expanduser('~/'+args.pout+"_"+str(self.wout)), "w")
 
                 for i in vertices:
-                    string = "("+str(x_0+i[0])+","+str(y_0+i[1])+")\n"
+                    string = "("+str(self.x_0+i[0])+","+str(self.y_0+i[1])+")\n"
                     out_file.write(string)
                 out_file.close()
                 self.wout=self.wout+1
@@ -492,7 +488,7 @@ class LineBuilder:
                 lx, ly, vertex = polygon_points(vertices)
                 absx, ncv, vert = var_to_line(self.mx, self.lat, self.lon, vertices,lx,ly,vertex)
                 mx_slice_masked, mx_slice_out = var_to_polygon(self.mx,vertices,lx,ly)
-                plot = plot_mesh_and_line(mx_slice_masked,mx_slice_out,absx,ncv,lx,ly,x_0,y_0,vert, vertices, self.time)
+                plot = plot_mesh_and_line(mx_slice_masked,mx_slice_out,self.lat,self.lon,absx,ncv,lx,ly,self.x_0,self.y_0,vert, vertices, self.time)
                 print plot
                 self.xs = []
                 self.ys = []
@@ -506,216 +502,208 @@ class LineBuilder:
             line.figure.canvas.mpl_disconnect(self.cid)
             exit()
 
+def main():
+    #extract data from netcdf
+    f = Dataset(args.inf)
 
-#extract data from netcdf
-f = Dataset(args.inf)
-
-try:
-    mask_rho = extract(f,"mask_rho")
-except ValueError as e:
-    print e.args
-    sys.exit()
-
-try:
-    meta_trans = extract(f, args.variable, args.time)
-except ValueError as e:
-    print e.args
-    sys.exit()
-
-if size(meta_trans.shape) != 3:
-    print "ERROR: not a 3d variable: ", args.variable,", quitting"
-    sys.exit()
-else:
-    pass
-try:
-    zeta = ma.masked_outside(extract(f, "zeta", args.time), -1e+36,1e+36)
-    Cs_r = extract(f, 'Cs_r')
-    s_rho = extract(f, 's_rho')
-    Cs_w = extract(f, 'Cs_w')
-    s_w = extract(f, 's_w')
-    Vtransform = extract(f, 'Vtransform')
-    Vstretching = extract(f, 'Vstretching')
-    N = len(s_rho)
-    Np = len(s_w)
-    print Np, "Np", N, "N"
-    hc= extract(f, 'hc')
-    h = ma.masked_outside(extract(f, "h"), -1e+36,1e+36)
-except:
-    print "cannot read a variable"
-
-
-
-
-times = (args.time_rec, "time", "clim_time", "bry_time")
-result = False
-for t in times:
     try:
-        print t
-        current_time = extract(f,t)  
-        result = True
-        break
+        mask_rho = extract(f,"mask_rho")
     except ValueError as e:
         print e.args
-        print "key error, trying another name for time record"
-        continue
-print result
-if result == False:
-    print "there is no time var with names", times
-    current_time = np.zeros(int(args.time)+1)
-else:
-    pass
-print current_time, "time"
-
-#meta_arg = extract_arg(f, args.variable, args.time, args.vert)
-#print meta_arg[0].shape, "meta_arg"
-
-try:
-    ncvar = ma.masked_where(mask_rho==0,np.sum(np.diff(z_w_a(zeta, h, s_w,hc, Cs_w,Np,Vtransform), axis=0)*meta_trans, axis=0))
-except:
-    print "cannot integrate"
-    sys.exit()
-
-coords = (("lat_rho","lon_rho"),("lat", "lon"))
-result = False
-for t in coords:
-    try:
-        print t
-        lat_meta, lon_meta = extract(f, t[0]), extract(f, t[1])
-        result = True
-        break
-    except ValueError as e:
-        #e = sys.exc_info()
-        print e.args
-        #print "key error, trying another name for time record"
-        continue
-print result
-if result == False:
-    print "there are no coordinates with names", coords
-    lat_meta, lon_meta=np.zeros(ncvar.shape), np.zeros(ncvar.shape)
-
-
-
-
-
-f.close()
-
-
-import matplotlib.pyplot as plt
-from pylab import *
-from matplotlib import colors, cm
-
-cmap=plt.cm.spectral
-
-#either new plot or from txt polygon
-if args.pin == None:
-    if args.xrange != None or args.yrange != None :
-        x_range="0:"+str(ncvar.shape[1])
-        y_range="0:"+str(ncvar.shape[0])
-        if args.xrange != None and args.yrange != None :
-            x_range = args.xrange
-            y_range = args.yrange
- 
-        else:
-            if args.xrange == None:
-                y_range = args.yrange
-            else:
-                x_range = args.xrange
-
-    else:
-        x_range = str(int(float(args.xzoom.split(':')[0])*ncvar.shape[1]/100.))+":"+str(int(float(args.xzoom.split(':')[1])*ncvar.shape[1]/100.))
-        y_range = str(int(float(args.yzoom.split(':')[0])*ncvar.shape[0]/100.))+":"+str(int(float(args.yzoom.split(':')[1])*ncvar.shape[0]/100.))
-
-    x_0 = int(float(x_range.split(':')[0]))
-    y_0 = int(float(y_range.split(':')[0]))
-    lat = lat_meta[int(float(y_range.split(':')[0])):int(float(y_range.split(':')[1])), int(float(x_range.split(':')[0])):int(float(x_range.split(':')[1]))]
-    lon = lon_meta[int(float(y_range.split(':')[0])):int(float(y_range.split(':')[1])), int(float(x_range.split(':')[0])):int(float(x_range.split(':')[1]))]
-
-    fillval = 1e+36
-    mx = ma.masked_outside(ncvar, -fillval,fillval)[int(float(y_range.split(':')[0])):int(float(y_range.split(':')[1])), int(float(x_range.split(':')[0])):int(float(x_range.split(':')[1]))]
-    fig_main, ax_main = plt.subplots()
-
-#main plot
-    try:
-        p=plt.imshow(mx, cmap=cmap, origin='lower', interpolation='nearest');plt.colorbar()     
-    except ValueError:
-        e = sys.exc_info()[0]
-        print e
-        print "ERROR: possibly out of range: xrange yrange"
-        print "yrange should be within : ", ncvar.shape[0]
-        print "xrange should be within : ", ncvar.shape[1]
-        print "your range for xrange :", args.xrange
-        print "your range for yrange :", args.yrange
-        
         sys.exit()
 
+    try:
+        meta_trans = extract(f, args.variable, args.time)
+    except ValueError as e:
+        print e.args
+        sys.exit()
 
-#format axes
-    if args.var_min or args.var_max:
-        if args.var_min and args.var_max:
-            if args.var_min < args.var_max:
-                p.set_clim(float(args.var_min), float(args.var_max))
-            else:
-                print 'incorrect var_min shoud be less than var_max, defaults then'
-                pass
-        else:
-            p.set_clim(args.var_min, args.var_max)
+    if size(meta_trans.shape) != 3:
+        print "ERROR: not a 3d variable: ", args.variable,", quitting"
+        sys.exit()
     else:
         pass
-
-    x_tick, y_tick, x_label, y_label = [],[],[],[]
-    for v in np.linspace(0,  int(y_range.split(':')[1])-y_0-1, num = 11):
-        y_tick.append(v)
-        y_label.append(str(int(y_0+v)))
-    for v in np.linspace(0,  int(x_range.split(':')[1])-x_0-1, num = 11):
-        x_tick.append(v)
-        x_label.append(str(int(x_0+v)))
-    ax_main.set_xticks(x_tick)
-    ax_main.set_xticklabels(x_label, rotation=30)
-    ax_main.set_yticks(y_tick)
-    ax_main.set_yticklabels(y_label)
-
-    plt.axis('tight')
-    print date_time(current_time[args.time])
-    ax_main.set_title(args.variable+' '+ date_time(current_time[args.time])+'\n '+str(np.sum(mx)))
-    ax = fig_main.add_subplot(111)
-    line, = ax.plot([], [])  # empty line 
-    linebuilder = LineBuilder(line, mx, current_time[args.time], lat, lon, x_0, y_0)
-    print args.pout
-else:
-    x_0, y_0 = 0,0
-    lat = lat_meta
-    lon = lon_meta
-    fillval = 1e+36
-    mx = ma.masked_outside(ncvar, -fillval,fillval)
     try:
-        file = open(args.pin,"r")
-    except IOError:
-        print  sys.exc_info()[0]
-        print "there is no file ", args.pin, " in the current directory"
-        sys.exit()
-    xs,ys=[],[]
-    for line in file:
-        i =line.replace("(","").replace(")","").replace(","," ")
-        print i.split()
+        zeta = ma.masked_outside(extract(f, "zeta", args.time), -1e+36,1e+36)
+        Cs_r = extract(f, 'Cs_r')
+        s_rho = extract(f, 's_rho')
+        Cs_w = extract(f, 'Cs_w')
+        s_w = extract(f, 's_w')
+        Vtransform = extract(f, 'Vtransform')
+        Vstretching = extract(f, 'Vstretching')
+        N = len(s_rho)
+        Np = len(s_w)
+        print Np, "Np", N, "N"
+        hc= extract(f, 'hc')
+        h = ma.masked_outside(extract(f, "h"), -1e+36,1e+36)
+    except:
+        print "cannot read a variable"
+
+
+
+
+    times = (args.time_rec, "time", "clim_time", "bry_time")
+    result = False
+    for t in times:
         try:
-            xs.append(int(float(i.split()[0])))
-            ys.append(int(float(i.split()[1])))
-        except:
-            print "maybe an empty line"
-            print line
-            print xs, ys
-            pass
-    file.close()
-    vertices=zip(xs,ys)
-    if len(vertices) > 1:
-        lx, ly, vertex = polygon_points(vertices)
-        absx, ncv, vert = var_to_line(mx, lat, lon, vertices,lx,ly,vertex)
-        mx_slice_masked, mx_slice_out = var_to_polygon(mx,vertices,lx,ly)
-        plot = plot_mesh_and_line(mx_slice_masked,mx_slice_out,absx,ncv,lx,ly,x_0,y_0,vert, vertices, current_time[args.time])
-        print plot
+            print t
+            current_time = extract(f,t)  
+            result = True
+            break
+        except ValueError as e:
+            print e.args
+            print "key error, trying another name for time record"
+            continue
+    print result
+    if result == False:
+        print "there is no time var with names", times
+        current_time = np.zeros(int(args.time)+1)
     else:
-        print "just one point in the file ",args.pin
-        print "provide more"
+        pass
+    print current_time, "time"
+
+
+    try:
+        ncvar = ma.masked_where(mask_rho==0,np.sum(np.diff(z_w_a(zeta, h, s_w,hc, Cs_w,Np,Vtransform), axis=0)*meta_trans, axis=0))
+    except:
+        print "cannot integrate"
         sys.exit()
 
-plt.show()
+    coords = (("lat_rho","lon_rho"),("lat", "lon"))
+    result = False
+    for t in coords:
+        try:
+            print t
+            lat_meta, lon_meta = extract(f, t[0]), extract(f, t[1])
+            result = True
+            break
+        except ValueError as e:
+            #e = sys.exc_info()
+            print e.args
+            #print "key error, trying another name for time record"
+            continue
+    print result
+    if result == False:
+        print "there are no coordinates with names", coords
+        lat_meta, lon_meta=np.zeros(ncvar.shape), np.zeros(ncvar.shape)
+
+    f.close()
+
+    cmap=plt.cm.spectral
+    #either new plot or from txt polygon
+    if args.pin == None:
+        if args.xrange != None or args.yrange != None :
+            x_range="0:"+str(ncvar.shape[1])
+            y_range="0:"+str(ncvar.shape[0])
+            if args.xrange != None and args.yrange != None :
+                x_range = args.xrange
+                y_range = args.yrange
+
+            else:
+                if args.xrange == None:
+                    y_range = args.yrange
+                else:
+                    x_range = args.xrange
+
+        else:
+            x_range = str(int(float(args.xzoom.split(':')[0])*ncvar.shape[1]/100.))+":"+str(int(float(args.xzoom.split(':')[1])*ncvar.shape[1]/100.))
+            y_range = str(int(float(args.yzoom.split(':')[0])*ncvar.shape[0]/100.))+":"+str(int(float(args.yzoom.split(':')[1])*ncvar.shape[0]/100.))
+
+        x_0 = int(float(x_range.split(':')[0]))
+        y_0 = int(float(y_range.split(':')[0]))
+        lat = lat_meta[int(float(y_range.split(':')[0])):int(float(y_range.split(':')[1])), int(float(x_range.split(':')[0])):int(float(x_range.split(':')[1]))]
+        lon = lon_meta[int(float(y_range.split(':')[0])):int(float(y_range.split(':')[1])), int(float(x_range.split(':')[0])):int(float(x_range.split(':')[1]))]
+
+        fillval = 1e+36
+        mx = ma.masked_outside(ncvar, -fillval,fillval)[int(float(y_range.split(':')[0])):int(float(y_range.split(':')[1])), int(float(x_range.split(':')[0])):int(float(x_range.split(':')[1]))]
+        fig_main, ax_main = plt.subplots()
+
+        # main plot
+        try:
+            p=plt.imshow(mx, cmap=cmap, origin='lower', interpolation='nearest');plt.colorbar()     
+        except ValueError:
+            e = sys.exc_info()[0]
+            print e
+            print "ERROR: possibly out of range: xrange yrange"
+            print "yrange should be within : ", ncvar.shape[0]
+            print "xrange should be within : ", ncvar.shape[1]
+            print "your range for xrange :", args.xrange
+            print "your range for yrange :", args.yrange
+
+            sys.exit()
+
+
+        # format axes
+        if args.var_min or args.var_max:
+            if args.var_min and args.var_max:
+                if args.var_min < args.var_max:
+                    p.set_clim(float(args.var_min), float(args.var_max))
+                else:
+                    print 'incorrect var_min shoud be less than var_max, defaults then'
+                    pass
+            else:
+                p.set_clim(args.var_min, args.var_max)
+        else:
+            pass
+
+        x_tick, y_tick, x_label, y_label = [],[],[],[]
+        for v in np.linspace(0,  int(y_range.split(':')[1])-y_0-1, num = 11):
+            y_tick.append(v)
+            y_label.append(str(int(y_0+v)))
+        for v in np.linspace(0,  int(x_range.split(':')[1])-x_0-1, num = 11):
+            x_tick.append(v)
+            x_label.append(str(int(x_0+v)))
+        ax_main.set_xticks(x_tick)
+        ax_main.set_xticklabels(x_label, rotation=30)
+        ax_main.set_yticks(y_tick)
+        ax_main.set_yticklabels(y_label)
+
+        plt.axis('tight')
+        print date_time(current_time[args.time])
+        ax_main.set_title(args.variable+' '+ date_time(current_time[args.time])+'\n '+str(np.sum(mx)))
+        ax = fig_main.add_subplot(111)
+        line, = ax.plot([], [])  # empty line 
+        linebuilder = LineBuilder(line, mx, current_time[args.time], lat, lon, x_0, y_0)
+        print args.pout
+    else:
+        x_0, y_0 = 0,0
+        lat = lat_meta
+        lon = lon_meta
+        fillval = 1e+36
+        mx = ma.masked_outside(ncvar, -fillval,fillval)
+        try:
+            file = open(args.pin,"r")
+        except IOError:
+            print  sys.exc_info()[0]
+            print "there is no file ", args.pin, " in the current directory"
+            sys.exit()
+        xs,ys=[],[]
+        for line in file:
+            i =line.replace("(","").replace(")","").replace(","," ")
+            print i.split()
+            try:
+                xs.append(int(float(i.split()[0])))
+                ys.append(int(float(i.split()[1])))
+            except:
+                print "maybe an empty line"
+                print line
+                print xs, ys
+                pass
+        file.close()
+        vertices=zip(xs,ys)
+        if len(vertices) > 1:
+            lx, ly, vertex = polygon_points(vertices)
+            absx, ncv, vert = var_to_line(mx, lat, lon, vertices,lx,ly,vertex)
+            mx_slice_masked, mx_slice_out = var_to_polygon(mx,vertices,lx,ly)
+            plot = plot_mesh_and_line(mx_slice_masked,mx_slice_out,lat, lon,absx,ncv,lx,ly,x_0,y_0,vert, vertices, current_time[args.time])
+            print plot
+        else:
+            print "just one point in the file ",args.pin
+            print "provide more"
+            sys.exit()
+
+    plt.show()
+
+
+if __name__ == '__main__':
+    main()
