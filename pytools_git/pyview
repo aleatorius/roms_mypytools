@@ -164,6 +164,33 @@ cmap=plt.cm.spectral
 fig1 = plt.figure(1)
 p=plt.pcolormesh(mx[int(float(args.yzoom.split(':')[0])*mx.shape[0]/100.):int(float(args.yzoom.split(':')[1])*mx.shape[0]/100.), int(float(args.xzoom.split(':')[0])*mx.shape[1]/100.):int(float(args.xzoom.split(':')[1])*mx.shape[1]/100.)], cmap=cmap);plt.colorbar()     
 
+
+
+txt = None
+dots = None
+def onclick(event):
+    global txt
+    global dots
+    if event.inaxes != None:
+        print event.inaxes
+        try:
+            dat = str('%.1f' % float(mx[(event.ydata, event.xdata)]))
+        except:
+            dat = 'nan'
+        txt = plt.text(event.xdata, event.ydata, dat , fontsize=8)
+        print txt
+        txt.set_bbox(dict(color='white', alpha=0.5, edgecolor='red'))
+        dots = plt.plot(event.xdata, event.ydata,'bo', markersize=2)
+        print dots
+#        fig1.canvas.draw()
+    else:
+        print event.inaxes
+
+
+fig1.canvas.mpl_connect('button_press_event', onclick)
+#fig1.canvas.mpl_connect('button_release_event', offclick) 
+
+
 if args.var_min or args.var_max:
 #     print args.var_min, args.var_min
      if args.var_min and args.var_max:
