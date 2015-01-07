@@ -207,7 +207,7 @@ def extract_all(inf, variable):
      print result
      if result == False:
          print "there is no time var with names", times
-         exit()
+         ot = 0
      else:
          pass
          
