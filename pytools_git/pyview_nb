@@ -221,15 +221,16 @@ class Index_4d:
     ind = args.time
     ind_v = args.vert
     def next(self, event):
+        global mx
         self.ind += 1
         i = self.ind % num_of_rec
         j = self.ind_v % num_of_vert
         print i,j
-        new_ncvar = ma.masked_outside(ncvar_all[i,j,:], -1e+36,1e+36)\
+        mx = ma.masked_outside(ncvar_all[i,j,:], -1e+36,1e+36)\
             [int(float(args.yzoom.split(':')[0])*mx.shape[0]/100.):int(float(args.yzoom.split(':')[1])*mx.shape[0]/100.),
              int(float(args.xzoom.split(':')[0])*mx.shape[1]/100.):int(float(args.xzoom.split(':')[1])*mx.shape[1]/100.)]
         remove_text_and_dot(ax)
-        p.set_array(new_ncvar.ravel())
+        p.set_array(mx.ravel())
         if j==num_of_vert-1:
             ax.set_title(args.variable+' '+ date_time(meta_all[1][i])+'\n sigma: '+str(j)+' (surface)')
         elif j==0:
@@ -240,15 +241,16 @@ class Index_4d:
         plt.draw()
 
     def prev(self, event):
+        global mx
         self.ind -= 1
         i = self.ind % num_of_rec
         j = self.ind_v % num_of_vert
         print i,j
-        new_ncvar = ma.masked_outside(ncvar_all[i,j,:], -1e+36,1e+36)\
+        mx = ma.masked_outside(ncvar_all[i,j,:], -1e+36,1e+36)\
             [int(float(args.yzoom.split(':')[0])*mx.shape[0]/100.):int(float(args.yzoom.split(':')[1])*mx.shape[0]/100.),
              int(float(args.xzoom.split(':')[0])*mx.shape[1]/100.):int(float(args.xzoom.split(':')[1])*mx.shape[1]/100.)]
         remove_text_and_dot(ax)
-        p.set_array(new_ncvar.ravel())
+        p.set_array(mx.ravel())
         if j==num_of_vert-1:
             ax.set_title(args.variable+' '+ date_time(meta_all[1][i])+'\n sigma: '+str(j)+' (surface)')
         elif j==0:
@@ -259,15 +261,16 @@ class Index_4d:
         plt.draw()
 
     def up(self, event):
+        global mx
         self.ind_v += 1
         i = self.ind % num_of_rec
         j = self.ind_v % num_of_vert
         print i,j
-        new_ncvar = ma.masked_outside(ncvar_all[i,j,:], -1e+36,1e+36)\
+        mx = ma.masked_outside(ncvar_all[i,j,:], -1e+36,1e+36)\
             [int(float(args.yzoom.split(':')[0])*mx.shape[0]/100.):int(float(args.yzoom.split(':')[1])*mx.shape[0]/100.),
              int(float(args.xzoom.split(':')[0])*mx.shape[1]/100.):int(float(args.xzoom.split(':')[1])*mx.shape[1]/100.)]
         remove_text_and_dot(ax)
-        p.set_array(new_ncvar.ravel())
+        p.set_array(mx.ravel())
         if j==num_of_vert-1:
             ax.set_title(args.variable+' '+ date_time(meta_all[1][i])+'\n sigma: '+str(j)+' (surface)')
         elif j==0:
@@ -278,15 +281,16 @@ class Index_4d:
         plt.draw()
 
     def down(self, event):
+        global mx
         self.ind_v -= 1
         i = self.ind % num_of_rec
         j = self.ind_v % num_of_vert
         print i,j
-        new_ncvar = ma.masked_outside(ncvar_all[i,j,:], -1e+36,1e+36)\
+        mx = ma.masked_outside(ncvar_all[i,j,:], -1e+36,1e+36)\
             [int(float(args.yzoom.split(':')[0])*mx.shape[0]/100.):int(float(args.yzoom.split(':')[1])*mx.shape[0]/100.),
              int(float(args.xzoom.split(':')[0])*mx.shape[1]/100.):int(float(args.xzoom.split(':')[1])*mx.shape[1]/100.)]
         remove_text_and_dot(ax)
-        p.set_array(new_ncvar.ravel())
+        p.set_array(mx.ravel())
         if j==num_of_vert-1:
             ax.set_title(args.variable+' '+ date_time(meta_all[1][i])+'\n sigma: '+str(j)+' (surface)')
         elif j==0:
@@ -299,25 +303,27 @@ class Index_4d:
 class Index_3d:
     ind = args.time
     def next(self, event):
+        global mx
         self.ind += 1
         i = self.ind % num_of_rec
-        new_ncvar = ma.masked_outside(ncvar_all[i,:], -1e+36,1e+36)\
+        mx = ma.masked_outside(ncvar_all[i,:], -1e+36,1e+36)\
             [int(float(args.yzoom.split(':')[0])*mx.shape[0]/100.):int(float(args.yzoom.split(':')[1])*mx.shape[0]/100.),
              int(float(args.xzoom.split(':')[0])*mx.shape[1]/100.):int(float(args.xzoom.split(':')[1])*mx.shape[1]/100.)]
         remove_text_and_dot(ax)
-        p.set_array(new_ncvar.ravel())
+        p.set_array(mx.ravel())
         ax.set_title(args.variable+' '+ date_time(meta_all[1][i]))
         ax.axis('tight')
         plt.draw()
 
     def prev(self, event):
+        global mx
         self.ind -= 1
         i = self.ind % num_of_rec
-        new_ncvar = ma.masked_outside(ncvar_all[i,:], -1e+36,1e+36)\
+        mx = ma.masked_outside(ncvar_all[i,:], -1e+36,1e+36)\
             [int(float(args.yzoom.split(':')[0])*mx.shape[0]/100.):int(float(args.yzoom.split(':')[1])*mx.shape[0]/100.),
              int(float(args.xzoom.split(':')[0])*mx.shape[1]/100.):int(float(args.xzoom.split(':')[1])*mx.shape[1]/100.)]
         remove_text_and_dot(ax)
-        p.set_array(new_ncvar.ravel())
+        p.set_array(mx.ravel())
         ax.set_title(args.variable+' '+ date_time(meta_all[1][i]))
         ax.axis('tight')
         plt.draw()
@@ -338,8 +344,6 @@ def remove_text_and_dot(ax):
 
 
 def onclick(event):
-    global txt
-    global dots
     if event.inaxes == ax:
         print event.inaxes
         try:
