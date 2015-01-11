@@ -229,6 +229,7 @@ class Index_4d:
         mx = ma.masked_outside(ncvar_all[i,j,:], -1e+36,1e+36)[z_range[0]:z_range[1],z_range[2]:z_range[3]]
         remove_text_and_dot(ax)
         p.set_array(mx.ravel())
+        p.set_clim(vmin=np.amin(mx), vmax=np.amax(mx))
         if j==num_of_vert-1:
             ax.set_title(args.variable+' '+ date_time(time_all[i])+'\n sigma: '+str(j)+' (surface)')
         elif j==0:
@@ -246,6 +247,7 @@ class Index_4d:
         print i,j
         mx = ma.masked_outside(ncvar_all[i,j,:], -1e+36,1e+36)[z_range[0]:z_range[1],z_range[2]:z_range[3]]
         remove_text_and_dot(ax)
+        p.set_clim(vmin=np.amin(mx), vmax=np.amax(mx))
         p.set_array(mx.ravel())
         if j==num_of_vert-1:
             ax.set_title(args.variable+' '+ date_time(time_all[i])+'\n sigma: '+str(j)+' (surface)')
@@ -265,6 +267,7 @@ class Index_4d:
         mx = ma.masked_outside(ncvar_all[i,j,:], -1e+36,1e+36)[z_range[0]:z_range[1],z_range[2]:z_range[3]]
         remove_text_and_dot(ax)
         p.set_array(mx.ravel())
+        p.set_clim(vmin=np.amin(mx), vmax=np.amax(mx))
         if j==num_of_vert-1:
             ax.set_title(args.variable+' '+ date_time(time_all[i])+'\n sigma: '+str(j)+' (surface)')
         elif j==0:
@@ -284,6 +287,7 @@ class Index_4d:
         mx = ma.masked_outside(ncvar_all[i,j,:], -1e+36,1e+36)[z_range[0]:z_range[1],z_range[2]:z_range[3]]
         remove_text_and_dot(ax)
         p.set_array(mx.ravel())
+        p.set_clim(vmin=np.amin(mx), vmax=np.amax(mx))
         if j==num_of_vert-1:
             ax.set_title(args.variable+' '+ date_time(time_all[i])+'\n sigma: '+str(j)+' (surface)')
         elif j==0:
@@ -303,6 +307,7 @@ class Index_3d:
         mx = ma.masked_outside(ncvar_all[i,:], -1e+36,1e+36)[z_range[0]:z_range[1],z_range[2]:z_range[3]]
         remove_text_and_dot(ax)
         p.set_array(mx.ravel())
+        p.set_clim(vmin=np.amin(mx), vmax=np.amax(mx))
         ax.set_title(args.variable+' '+ date_time(time_all[i]))
         ax.axis('tight')
         plt.draw()
@@ -314,6 +319,7 @@ class Index_3d:
         mx = ma.masked_outside(ncvar_all[i,:], -1e+36,1e+36)[z_range[0]:z_range[1],z_range[2]:z_range[3]]
         remove_text_and_dot(ax)
         p.set_array(mx.ravel())
+        p.set_clim(vmin=np.amin(mx), vmax=np.amax(mx))
         ax.set_title(args.variable+' '+ date_time(time_all[i]))
         ax.axis('tight')
         plt.draw()
