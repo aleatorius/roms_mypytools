@@ -1,0 +1,639 @@
+#!/usr/bin/env python 
+##!/home/ntnu/mitya/virt_env/virt1/bin/python -B
+## Dmitry Shcherbin, 2014.07.01
+##with navigation buttons, 2015.01.05
+
+import numpy as np
+from numpy import *
+from netCDF4 import *
+import sys, re, glob, os
+import numpy.ma as ma
+import argparse
+import os.path
+import datetime
+from datetime import date, time
+import pprint
+from pprint import *
+
+__author__='Dmitry Shcherbin'
+__email__='dmitry.shcherbin@gmail.com'
+
+parser = argparse.ArgumentParser(
+description='pyview_nb',
+usage='python pyview_nb -i /global/work/apn/S800_short/norseas_800m_avg_2058.nc -v hice --xzoom 50:100 --yzoom 50:100  --ref_datetime 1948-01-01 00:00:00'
+)
+
+parser.add_argument(
+'-i', 
+help='input file', 
+dest='inf', 
+action="store"
+)
+parser.add_argument(
+'-v', 
+help='variable', 
+dest ='variable', 
+action="store"
+)
+parser.add_argument(
+'-list', 
+help='regex list', 
+dest ='list', 
+action="store"
+)
+parser.add_argument(
+'-start', 
+help='regex start', 
+dest ='start', 
+action="store"
+)
+
+parser.add_argument(
+'--ref_datetime', 
+help='reference date time: 1970-01-01 00:00:00', 
+dest='ref_datetime', 
+action="store", 
+nargs=2, 
+default=None
+)
+parser.add_argument(
+'-f', 
+help='time format', 
+dest='time_f', 
+action="store", 
+default="s"
+)
+parser.add_argument(
+'--time_rec', 
+help='time rec', 
+dest ='time_rec', 
+action="store", 
+default="ocean_time"
+)
+parser.add_argument(
+'--time', 
+help='time counter', 
+dest ='time', 
+action="store", 
+type=int, 
+default=0
+)
+parser.add_argument(
+'--vert', 
+help='vertical coordinate number', 
+dest ='vert', 
+action="store", 
+type=int, 
+default=-1
+)
+parser.add_argument(
+'--xzoom', 
+help='zoom along x direction, range is defined in percents', 
+dest ='xzoom', 
+action="store",  
+default='0:100'
+)
+parser.add_argument(
+'--yzoom', 
+help='zoom along y direction, range is defined in percents', 
+dest ='yzoom', 
+action="store",  
+default='0:100'
+)
+parser.add_argument(
+'--var_min', 
+help='minimum value of variable', 
+dest ='var_min', 
+action="store", 
+type=float, 
+default = None
+)
+parser.add_argument(
+'--var_max', 
+help='minimum value of variable', 
+dest ='var_max', 
+action="store", 
+type=float, 
+default = None
+)
+
+args = parser.parse_args()
+
+#if not (args.inf):
+#    parser.error('please give a file name')
+#if not os.path.isfile(args.inf):
+#     print 'file does not exists'
+#     parser.error('please give a file name')
+     
+
+if ':' not in list(args.xzoom):
+     parser.error('provide zoom in i:k format!')
+else:
+     for i in [0,1]:
+          if 0 <= float(args.xzoom.split(':')[i])<= 100:
+               pass
+          else:
+               parser.error('whole range 0:100')
+
+if ':' not in list(args.yzoom):
+     parser.error('provide zoom in i:k format!')
+else:
+     for i in [0,1]:
+          if 0 <= float(args.yzoom.split(':')[i])<= 100:
+               pass
+          else:
+               parser.error('wrong xzoom, whole range 0:100')
+
+
+if float(args.yzoom.split(':')[0])>= float(args.yzoom.split(':')[1]):
+     parser.error('in zoom range i:k i<k')
+if float(args.xzoom.split(':')[0])>= float(args.xzoom.split(':')[1]):
+     parser.error('in zoom range i:k i<k')
+
+def print_list(data):
+    col_width = max(len(i) for i in data) + 2  # padding
+    count = 0
+    a= []
+    for i in data:
+        count = count +1
+        if count < 6:
+            a.append(i)
+        else:
+            print "".join(j.ljust(col_width) for j in a)
+            a = []
+            count = 0
+
+
+def date_time(ot):
+    if args.ref_datetime == None:
+        ref = date(1970,01,01)
+        ref_time = time(0,0,0)
+    else:
+        print args.ref_datetime[0], args.ref_datetime[1]
+        ref = datetime.datetime.strptime(args.ref_datetime[0],'%Y-%m-%d').date()
+        ref_time = datetime.datetime.strptime(args.ref_datetime[1],'%H:%M:%S').time()
+
+    refer= datetime.datetime.combine(ref, ref_time)
+    if args.time_f =='s':
+        return (refer + datetime.timedelta(float(ot)/(3600*24))).strftime("%Y-%m-%d %H:%M:%S")
+    else:
+        return (refer + datetime.timedelta(float(ot))).strftime("%Y-%m-%d %H:%M:%S")
+
+
+if not (args.variable):
+    f = Dataset(args.inf)
+    print_list(f.variables.keys())
+    f.close()
+    sys.exit()
+
+
+def unpack(ina):
+     outa = zeros(ina.shape)
+     outa[:] = ina[:]
+     return outa
+
+def extract_all(inf, variable):
+     f = Dataset(inf)
+     if str(variable) in f.variables.keys():
+          print '\n In the file', inf
+          print 'variable', variable, 'exists'
+          ncvar = unpack(f.variables[variable])
+          print 'and its dimension equals:', size(ncvar.shape)
+     else:
+          print 'provided variable doesnt exists, choose from the list:\n'
+          print_list(f.variables.keys())          
+          f.close()
+          sys.exit()
+     times = (args.time_rec, "time", "clim_time", "bry_time")
+     result = False
+     for t in times:
+         try:
+             print t
+             ot = unpack(f.variables[str(t)])  
+             result = True
+             break
+         except KeyError:
+             #e = sys.exc_info()[0]
+             print "key error, trying another name for time record"
+             continue
+     print result
+     if result == False:
+         print "there is no time var with names", times
+         ot = 0
+     else:
+         pass
+         
+     f.close()
+     return ncvar, ot
+
+
+
+
+class Index_4d:
+    ind = args.time
+    ind_v = args.vert
+    def next(self, event):
+        global mx
+        global ncvar_all
+        global num_of_rec
+        global num_of_vert
+        global index_start
+        global time_all
+        self.ind += 1
+        if self.ind == num_of_rec:
+            index_start += 1
+            try:
+                ncvar_all, time_all = extract_all(file_list[index_start], args.variable)
+                num_of_rec =  ncvar_all.shape[0]
+                num_of_vert = ncvar_all.shape[1]
+                self.ind = 0
+            except:
+                print "reached the right end of the list, going to the lef"
+                ncvar_all, time_all = extract_all(file_list[0], args.variable)
+                num_of_rec =  ncvar_all.shape[0]
+                num_of_vert = ncvar_all.shape[1]
+                self.ind = 0
+        else:
+            pass
+        i = self.ind 
+        j = self.ind_v % num_of_vert
+        print i,j
+        mx = ma.masked_outside(ncvar_all[i,j,:], -1e+36,1e+36)[z_range[0]:z_range[1],z_range[2]:z_range[3]]
+        remove_text_and_dot(ax)
+        p.set_array(mx.ravel())
+        p.set_clim(vmin=np.amin(mx), vmax=np.amax(mx))
+        if j==num_of_vert-1:
+            ax.set_title(args.variable+' '+ date_time(time_all[i])+'\n sigma: '+str(j)+' (surface)')
+        elif j==0:
+            ax.set_title(args.variable+' '+ date_time(time_all[i])+'\n sigma: '+str(j)+' (bottom)')
+        else:
+            ax.set_title(args.variable+' '+ date_time(time_all[i])+'\n sigma: '+str(j))
+        ax.axis('tight')
+        plt.draw()
+
+    def prev(self, event):
+        global mx
+        global ncvar_all
+        global num_of_rec
+        global num_of_vert
+        global index_start
+        global time_all
+        self.ind -= 1
+        if self.ind == -1:
+            index_start -= 1
+            try:
+                ncvar_all, time_all = extract_all(file_list[index_start], args.variable)
+                num_of_rec =  ncvar_all.shape[0]
+                num_of_vert = ncvar_all.shape[1]
+                self.ind = num_of_rec-1
+            except:
+                print "reached the left end of the list, going to the right then"
+                ncvar_all, time_all = extract_all(file_list[-1], args.variable)
+                num_of_rec =  ncvar_all.shape[0]
+                num_of_vert = ncvar_all.shape[1]
+                self.ind = num_of_rec-1
+        else:
+            pass
+        i = self.ind 
+        j = self.ind_v % num_of_vert
+        print i,j
+        mx = ma.masked_outside(ncvar_all[i,j,:], -1e+36,1e+36)[z_range[0]:z_range[1],z_range[2]:z_range[3]]
+        remove_text_and_dot(ax)
+        p.set_clim(vmin=np.amin(mx), vmax=np.amax(mx))
+        p.set_array(mx.ravel())
+        if j==num_of_vert-1:
+            ax.set_title(args.variable+' '+ date_time(time_all[i])+'\n sigma: '+str(j)+' (surface)')
+        elif j==0:
+            ax.set_title(args.variable+' '+ date_time(time_all[i])+'\n sigma: '+str(j)+' (bottom)')
+        else:
+            ax.set_title(args.variable+' '+ date_time(time_all[i])+'\n sigma: '+str(j))
+        ax.axis('tight')
+        plt.draw()
+
+    def up(self, event):
+        global mx
+        self.ind_v += 1
+        i = self.ind % num_of_rec
+        j = self.ind_v % num_of_vert
+        print i,j
+        mx = ma.masked_outside(ncvar_all[i,j,:], -1e+36,1e+36)[z_range[0]:z_range[1],z_range[2]:z_range[3]]
+        remove_text_and_dot(ax)
+        p.set_array(mx.ravel())
+        p.set_clim(vmin=np.amin(mx), vmax=np.amax(mx))
+        if j==num_of_vert-1:
+            ax.set_title(args.variable+' '+ date_time(time_all[i])+'\n sigma: '+str(j)+' (surface)')
+        elif j==0:
+            ax.set_title(args.variable+' '+ date_time(time_all[i])+'\n sigma: '+str(j)+' (bottom)')
+        else:
+            ax.set_title(args.variable+' '+ date_time(time_all[i])+'\n sigma: '+str(j))
+        ax.axis('tight')
+        plt.draw()
+
+    def down(self, event):
+        global mx
+        self.ind_v -= 1
+        i = self.ind % num_of_rec
+        j = self.ind_v % num_of_vert
+        print i,j
+
+        mx = ma.masked_outside(ncvar_all[i,j,:], -1e+36,1e+36)[z_range[0]:z_range[1],z_range[2]:z_range[3]]
+        remove_text_and_dot(ax)
+        p.set_array(mx.ravel())
+        p.set_clim(vmin=np.amin(mx), vmax=np.amax(mx))
+        if j==num_of_vert-1:
+            ax.set_title(args.variable+' '+ date_time(time_all[i])+'\n sigma: '+str(j)+' (surface)')
+        elif j==0:
+            ax.set_title(args.variable+' '+ date_time(time_all[i])+'\n sigma: '+str(j)+' (bottom)')
+        else:
+            ax.set_title(args.variable+' '+ date_time(time_all[i])+'\n sigma: '+str(j))
+        ax.axis('tight')
+        plt.draw()
+
+class Index_3d:
+    ind = args.time
+    def next(self, event):
+        global mx
+        global ncvar_all
+        global num_of_rec
+        global index_start
+        global time_all
+        self.ind += 1
+        if self.ind == num_of_rec:
+            index_start += 1
+            try:
+                ncvar_all, time_all = extract_all(file_list[index_start], args.variable)
+                num_of_rec =  ncvar_all.shape[0]
+                self.ind = 0
+            except:
+                print "reached the right end of the list, going to the lef"
+                ncvar_all, time_all = extract_all(file_list[0], args.variable)
+                num_of_rec =  ncvar_all.shape[0]
+                self.ind = 0
+        else:
+            pass
+        i = self.ind 
+
+        mx = ma.masked_outside(ncvar_all[i,:], -1e+36,1e+36)[z_range[0]:z_range[1],z_range[2]:z_range[3]]
+        remove_text_and_dot(ax)
+        p.set_array(mx.ravel())
+        p.set_clim(vmin=np.amin(mx), vmax=np.amax(mx))
+        ax.set_title(args.variable+' '+ date_time(time_all[i]))
+        ax.axis('tight')
+        plt.draw()
+
+    def prev(self, event):
+        global mx
+        global ncvar_all
+        global num_of_rec
+        global index_start
+        global time_all
+        self.ind -= 1
+        if self.ind == -1:
+            index_start -= 1
+            try:
+                ncvar_all, time_all = extract_all(file_list[index_start], args.variable)
+                num_of_rec =  ncvar_all.shape[0]
+                self.ind = num_of_rec-1
+            except:
+                print "reached the left end of the list, going to the right then"
+                ncvar_all, time_all = extract_all(file_list[-1], args.variable)
+                num_of_rec =  ncvar_all.shape[0]
+                self.ind = num_of_rec-1
+        else:
+            pass
+        i = self.ind 
+        mx = ma.masked_outside(ncvar_all[i,:], -1e+36,1e+36)[z_range[0]:z_range[1],z_range[2]:z_range[3]]
+        remove_text_and_dot(ax)
+        p.set_array(mx.ravel())
+        p.set_clim(vmin=np.amin(mx), vmax=np.amax(mx))
+        ax.set_title(args.variable+' '+ date_time(time_all[i]))
+        ax.axis('tight')
+        plt.draw()
+
+
+
+def remove_text_and_dot(ax):
+    a = []
+    for text in ax.texts:
+        a.append(text)
+    for obj in a:
+        obj.remove()
+    a = []
+    for dot in ax.lines:
+        a.append(dot)
+    for obj in a:
+        obj.remove()    
+
+
+def onclick(event):
+    if event.inaxes == ax:
+        print event.inaxes
+        try:
+            dat = str('%.1f' % float(mx[(event.ydata, event.xdata)]))
+        except:
+            dat = 'nan'
+        txt = ax.text(event.xdata, event.ydata, dat , fontsize=8)
+        txt.set_bbox(dict(color='white', alpha=0.5, edgecolor='red'))
+        dots = ax.plot(event.xdata, event.ydata,'bo', markersize=2)
+        fig.canvas.draw()
+    else:
+        print event.inaxes
+
+
+#fillval = 1e+36
+file_list = sorted(glob.glob(args.list+"*"))
+print file_list
+if len(file_list)==0:
+    print "list is empty"
+    exit()
+else:
+    pass
+ar_start = glob.glob(args.start+"*")
+if len(ar_start)==1:
+    file_start=ar_start[0]
+else:
+    print "not a unique file start"
+    exit()
+print "file_start", file_start
+index_start=None
+for i,j in enumerate(file_list):
+    print i,j
+    if j==file_start:
+        print i,j
+        index_start=i
+        break
+    else:
+        pass
+if index_start !=None:
+    print "there is a start file in this list"
+try:
+    ncvar_all, time_all = extract_all(file_list[index_start], args.variable)
+except:
+    print "maybe start file is wrong"
+    exit()
+
+dim = size(ncvar_all.shape)
+
+print 'dim', dim
+if dim == 4:
+    num_of_rec =  ncvar_all.shape[0]
+    num_of_vert = ncvar_all.shape[1]
+    print "num of vert", num_of_vert
+    print "num of rec", num_of_rec
+
+
+    import matplotlib.pyplot as plt
+    from pylab import *
+    from matplotlib import colors, cm
+    from matplotlib.widgets import Button
+
+    matplotlib.rc('font', family='DejaVu Sans')
+    #this is to make unicode characters in the plot
+    mx = ma.masked_outside(ncvar_all[args.time % num_of_rec,args.vert % num_of_vert,:], -1e+36,1e+36)
+    cmap=plt.cm.spectral
+    fig = plt.figure(figsize=(12,8))
+    ax = fig.add_subplot(111)
+    z_range = [int(float(args.yzoom.split(':')[0])*mx.shape[0]/100.),int(float(args.yzoom.split(':')[1])*mx.shape[0]/100.),
+               int(float(args.xzoom.split(':')[0])*mx.shape[1]/100.),int(float(args.xzoom.split(':')[1])*mx.shape[1]/100.)]
+
+    mx = mx[z_range[0]:z_range[1],z_range[2]:z_range[3]]
+    p=ax.pcolormesh(mx,cmap=cmap)
+    plt.colorbar(p)     
+    ax.axis('tight')
+
+    fig.canvas.mpl_connect('button_press_event', onclick)
+
+    callback = Index_4d()
+
+    axprev = fig.add_axes([0.35, 0.015, 0.05, 0.055])
+    axnext = fig.add_axes([0.45, 0.015, 0.05, 0.055])
+
+    bnext = Button(axnext, u"\u21e8")
+    bnext.label.set_fontsize("xx-large")
+    bnext.on_clicked(callback.next)
+    bprev = Button(axprev, u"\u21e6")
+    bprev.label.set_fontsize("xx-large")
+    bprev.on_clicked(callback.prev)
+
+    axup = fig.add_axes([0.9, 0.55, 0.05, 0.05])
+    axdown = fig.add_axes([0.9, 0.45, 0.05, 0.05])
+
+    bup = Button(axup, u"\u21e7")
+    bup.label.set_fontsize("xx-large")
+    bup.on_clicked(callback.up)
+    bdown = Button(axdown, u"\u21e9")
+    bdown.label.set_fontsize("xx-large")
+    bdown.on_clicked(callback.down)
+
+
+    if args.var_min or args.var_max:
+        if args.var_min and args.var_max:
+            if args.var_min < args.var_max:
+                p.set_clim(float(args.var_min), float(args.var_max))
+            else:
+                print 'incorrect var_min shoud be less than var_max, defaults then'
+                pass
+        else:
+            p.set_clim(args.var_min, args.var_max)
+    else:
+        pass
+
+
+
+
+    if args.vert % num_of_vert == num_of_vert-1:
+        ax.set_title(args.variable+' '+ date_time(time_all[args.time])+'\n sigma: '+str(args.vert % num_of_vert )+' (surface)')
+    elif args.vert % num_of_vert == 0:
+        ax.set_title(args.variable+' '+ date_time(time_all[args.time])+'\n sigma: '+str(args.vert % num_of_vert )+' (bottom)')
+    else:
+        ax.set_title(args.variable+' '+ date_time(time_all[args.time])+'\n sigma: '+str(args.vert % num_of_vert ))
+    plt.show()
+elif dim == 3:
+    num_of_rec =  ncvar_all.shape[0]
+    print "num of rec", num_of_rec
+    import matplotlib.pyplot as plt
+    from pylab import *
+    from matplotlib import colors, cm
+    from matplotlib.widgets import Button
+
+    matplotlib.rc('font', family='DejaVu Sans')
+    #this is to make unicode characters in the plot
+    mx = ma.masked_outside(ncvar_all[args.time % num_of_rec,:], -1e+36,1e+36)
+    cmap=plt.cm.spectral
+    fig = plt.figure(figsize=(12,8))
+    ax = fig.add_subplot(111)
+    z_range = [int(float(args.yzoom.split(':')[0])*mx.shape[0]/100.),int(float(args.yzoom.split(':')[1])*mx.shape[0]/100.),
+               int(float(args.xzoom.split(':')[0])*mx.shape[1]/100.),int(float(args.xzoom.split(':')[1])*mx.shape[1]/100.)]
+
+    mx = mx[z_range[0]:z_range[1],z_range[2]:z_range[3]]
+    p=ax.pcolormesh(mx,cmap=cmap)
+    plt.colorbar(p)     
+
+
+    fig.canvas.mpl_connect('button_press_event', onclick)
+
+    callback = Index_3d()
+
+    axprev = fig.add_axes([0.35, 0.015, 0.05, 0.055])
+    axnext = fig.add_axes([0.45, 0.015, 0.05, 0.055])
+
+    bnext = Button(axnext, u"\u21e8")
+    bnext.label.set_fontsize("xx-large")
+    bnext.on_clicked(callback.next)
+    bprev = Button(axprev, u"\u21e6")
+    bprev.label.set_fontsize("xx-large")
+    bprev.on_clicked(callback.prev)
+
+    if args.var_min or args.var_max:
+        if args.var_min and args.var_max:
+            if args.var_min < args.var_max:
+                p.set_clim(float(args.var_min), float(args.var_max))
+            else:
+                print 'incorrect var_min shoud be less than var_max, defaults then'
+                pass
+        else:
+            p.set_clim(args.var_min, args.var_max)
+    else:
+        pass
+
+
+    ax.axis('tight')
+    ax.set_title(args.variable+' '+ date_time(time_all[args.time]))
+    plt.show()
+
+elif dim == 2:
+    import matplotlib.pyplot as plt
+    from pylab import *
+    from matplotlib import colors, cm
+    #this is to make unicode characters in the plot
+    mx = ma.masked_outside(ncvar_all, -1e+36,1e+36)
+    cmap=plt.cm.spectral
+    fig = plt.figure(figsize=(12,8))
+    ax = fig.add_subplot(111)
+    z_range = [int(float(args.yzoom.split(':')[0])*mx.shape[0]/100.),int(float(args.yzoom.split(':')[1])*mx.shape[0]/100.),
+               int(float(args.xzoom.split(':')[0])*mx.shape[1]/100.),int(float(args.xzoom.split(':')[1])*mx.shape[1]/100.)]
+
+    mx = mx[z_range[0]:z_range[1],z_range[2]:z_range[3]]
+    p=ax.pcolormesh(mx,cmap=cmap)
+    plt.colorbar(p)     
+    fig.canvas.mpl_connect('button_press_event', onclick)
+
+    if args.var_min or args.var_max:
+        if args.var_min and args.var_max:
+            if args.var_min < args.var_max:
+                p.set_clim(float(args.var_min), float(args.var_max))
+            else:
+                print 'incorrect var_min shoud be less than var_max, defaults then'
+                pass
+        else:
+            p.set_clim(args.var_min, args.var_max)
+    else:
+        pass
+
+
+    ax.axis('tight')
+    ax.set_title(args.variable + ' time independent')
+    plt.show()
+    
+else:
+    print "should be 4d, 3d or 2d"
