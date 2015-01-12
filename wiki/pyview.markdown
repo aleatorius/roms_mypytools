@@ -6,7 +6,7 @@ Files:
 * [pyview_nb](https://github.com/aleatorius/roms_mypytools/blob/master/pytools_git/pyview_nb)
   * it has a command line and GUI interactivity - a user can navigate vertical layers and time records (4d variables and 3d variables). 
 
-* [pyview_list](https://github.com/aleatorius/roms_mypytools/blob/master/pytools_git/pyview_line)
+* [pyview_list](https://github.com/aleatorius/roms_mypytools/blob/master/pytools_git/pyview_list)
   * A modified version of [pyview_nb](https://source.uit.no/mitya/pytools_git/blob/master/pyview_nb) - user can navigate along time records through the list of files.
 
 
@@ -63,7 +63,7 @@ python pyview_nb -i /global/work/apn/S800_short/norseas_800m_avg_2058.nc -v hice
 
 ![pyview](3d.png)
 
-### Graphically interactive script on the list of files [pyview_list](https://github.com/aleatorius/roms_mypytools/blob/master/pytools_git/pyview_line) 
+### Graphically interactive script on the list of files [pyview_list](https://github.com/aleatorius/roms_mypytools/blob/master/pytools_git/pyview_list) 
 
 
 ```
