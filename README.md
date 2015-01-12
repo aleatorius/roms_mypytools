@@ -1,10 +1,10 @@
 #### Tools:
 
-* [graphically interactive and command line transects viewers](https://github.com/aleatorius/roms_mypytools/blob/master/pytrans.markdown)
+* [graphically interactive and command line transects viewers](https://github.com/aleatorius/roms_mypytools/blob/master/wiki/pytrans.markdown)
 
-* [graphically interactive polygon zoom tool and rangefinder](https://github.com/aleatorius/roms_mypytools/blob/master/polygon_zoom.markdown)
+* [graphically interactive polygon zoom tool and rangefinder](https://github.com/aleatorius/roms_mypytools/blob/master/wiki/polygon_zoom.markdown)
 
-* [graphically interactive line zoom tool](https://github.com/aleatorius/roms_mypytools/blob/master/linezoom.markdown)
+* [graphically interactive line zoom tool](https://github.com/aleatorius/roms_mypytools/blob/master/wiki/linezoom.markdown)
 
 * [animation: snapshots and merging](https://github.com/aleatorius/roms_mypytools/wiki/animation)
 
