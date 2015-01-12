@@ -322,7 +322,7 @@ class LineBuilder:
             self.ys.append(event.ydata)
             self.line.set_data(self.xs, self.ys)
             self.line.figure.canvas.draw()
-        if  event.dblclick ==  True:
+        if  event.button ==  3:
             self.line.set_data(self.xs, self.ys)
             self.line.figure.canvas.draw()
             if len(self.xs) > 1:
@@ -331,10 +331,6 @@ class LineBuilder:
                 z_dict = {}
                 zr_dict = {}
                 var_dict = {}
-                #for i in range(self.Np):
-                #    z_dict[str(i)]=[]
-                #for i in range(self.Np-1):
-                #    var_dict[str(i)]=[]
                 line_points=[]
                 counter= 0
                 for i in range(0,len(self.xs)-1):
@@ -535,10 +531,10 @@ class LineBuilder:
             else:
                 print "click twice please!"
             
-       # if event.dblclick ==  True:
-       #     print "double click detected"
-       #     line.figure.canvas.mpl_disconnect(self.cid)
-       #     exit()
+        if event.dblclick ==  True:
+            print "double click detected"
+            line.figure.canvas.mpl_disconnect(self.cid)
+            exit()
 
 
 
