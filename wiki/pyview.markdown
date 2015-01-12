@@ -1,16 +1,16 @@
 #### 2d mesh plot along specified s-coordinate (--vert)
 
 Files:
-* [pyview](https://source.uit.no/mitya/pytools_git/blob/master/pyview)
+* [pyview](https://github.com/aleatorius/roms_mypytools/blob/master/pytools_git/pyview)
   *  it has a command line interactivity - suitable for scripts and printing
-* [pyview_nb](https://source.uit.no/mitya/pytools_git/blob/master/pyview_nb)
+* [pyview_nb](https://github.com/aleatorius/roms_mypytools/blob/master/pytools_git/pyview_nb)
   * it has a command line and GUI interactivity - a user can navigate vertical layers and time records (4d variables and 3d variables). 
 
-* [pyview_list](https://source.uit.no/mitya/pytools_git/blob/master/pyview_list)
+* [pyview_list](https://github.com/aleatorius/roms_mypytools/blob/master/pytools_git/pyview_line)
   * A modified version of [pyview_nb](https://source.uit.no/mitya/pytools_git/blob/master/pyview_nb) - user can navigate along time records through the list of files.
 
 
-### Graphically interactive script [pyview_nb](https://source.uit.no/mitya/pytools_git/blob/master/pyview_nb) 
+### Graphically interactive script [pyview_nb](https://github.com/aleatorius/roms_mypytools/blob/master/pytools_git/pyview_nb) 
 
 ( with navigation buttons):
 
@@ -63,7 +63,7 @@ python pyview_nb -i /global/work/apn/S800_short/norseas_800m_avg_2058.nc -v hice
 
 ![pyview](3d.png)
 
-### Graphically interactive script on the list of files [pyview_list](https://source.uit.no/mitya/pytools_git/blob/master/pyview_list) 
+### Graphically interactive script on the list of files [pyview_list](https://github.com/aleatorius/roms_mypytools/blob/master/pytools_git/pyview_line) 
 
 
 ```
@@ -103,7 +103,7 @@ To navigate along vertical layers user should click up and down arrows.
 
 
 
-### The command line interactive script [pyview](https://source.uit.no/mitya/pytools_git/blob/master/pyview):
+### The command line interactive script [pyview](https://github.com/aleatorius/roms_mypytools/blob/master/pytools_git/pyview):
 
 Example:
 ```
