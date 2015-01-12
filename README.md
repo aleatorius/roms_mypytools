@@ -10,7 +10,7 @@
 
 * [ice volume dynamics](https://github.com/aleatorius/roms_mypytools/wiki/ice_volume)
 
-* [2d s-horizontal mesh graphics viewer - command line and GUI scripts](https://github.com/aleatorius/roms_mypytools/blob/master/pyview.markdown)
+* [2d s-horizontal mesh graphics viewer - command line and GUI scripts](https://github.com/aleatorius/roms_mypytools/blob/master/wiki/pyview.markdown)
 
 * [diffing two files or records s-horizontally](https://github.com/aleatorius/roms_mypytools/wiki/pydiff)
 
