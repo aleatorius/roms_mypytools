@@ -6,28 +6,28 @@
 
 * [graphically interactive line zoom tool](https://github.com/aleatorius/roms_mypytools/blob/master/linezoom.markdown)
 
-* [animation: snapshots and merging](animation)
+* [animation: snapshots and merging](https://github.com/aleatorius/roms_mypytools/wiki/animation)
 
-* [ice volume dynamics](ice_volume)
+* [ice volume dynamics](https://github.com/aleatorius/roms_mypytools/wiki/ice_volume)
 
 * [2d s-horizontal mesh graphics viewer - command line and GUI scripts](https://github.com/aleatorius/roms_mypytools/blob/master/pyview.markdown)
 
-* [diffing two files or records s-horizontally](pydiff)
+* [diffing two files or records s-horizontally](https://github.com/aleatorius/roms_mypytools/wiki/pydiff)
 
-* [vertically integrated 2d mesh plot and total mass time series](vertically_integrated_mesh)
+* [vertically integrated 2d mesh plot and total mass time series](https://github.com/aleatorius/roms_mypytools/wiki/vertically_integrated_mesh)
 
-* [python time records lookup tools](ncdates)
+* [python time records lookup tools](https://github.com/aleatorius/roms_mypytools/wiki/ncdates)
   * analogous to `ncdump -v time` - but these tools give human (or script) readable dates.
 
-* [grep record number and grep record slice](grepslice)
+* [grep record number and grep record slice](https://github.com/aleatorius/roms_mypytools/wiki/grepslice)
 
   * useful when dealing with netcdfs with thousands of records
 
-* [scpfiles.sh and rename.sh: mass action on netcdfs](scpfiles)
+* [scpfiles.sh and rename.sh: mass action on netcdfs](https://github.com/aleatorius/roms_mypytools/wiki/scpfiles)
 
 #### Troubleshooting and recipes:
 
-* [monthly climatology from ROMS results](clim_from_roms)
+* [monthly climatology from ROMS results](https://github.com/aleatorius/roms_mypytools/wiki/clim_from_roms)
 
-* [netcdf data overlap issue](overlap_solution)
+* [netcdf data overlap issue](https://github.com/aleatorius/roms_mypytools/wiki/overlap_solution)
 
