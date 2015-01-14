@@ -1,7 +1,7 @@
 #### Files:
 
-* [polygon_zoom.py](https://source.uit.no/mitya/pytools_git/blob/master/polygon_zoom.py)  
-* [polygon_zoom_int.py](https://source.uit.no/mitya/pytools_git/blob/master/polygon_zoom_int.py) 
+* [polygon_zoom.py](https://github.com/aleatorius/roms_mypytools/blob/master/pytools_git/polygon_zoom.py)  
+* [polygon_zoom_int.py](https://github.com/aleatorius/roms_mypytools/blob/master/pytools_git/polygon_zoom_int.py) 
 
 #### Description:
 
@@ -10,7 +10,7 @@ A polygonal area can be picked. The rectangular mesh grid containing this polygo
 
 #### Usage:
  
-* [polygon_zoom.py](https://source.uit.no/mitya/pytools_git/blob/master/polygon_zoom.py) 
+* [polygon_zoom.py](https://github.com/aleatorius/roms_mypytools/blob/master/pytools_git/polygon_zoom.py) 
 
 ```
 python polygon_zoom.py -i /global/work/jsk/S800/norseas_800m_avg.nc_2006051212 -v temp  &
@@ -31,9 +31,9 @@ python polygon_zoom.py -i /global/work/jsk/S800/norseas_800m_avg.nc_2006051212 -
 ```
 In this way the script reads from a previously created txt file```foo_1``` the vertices of a polygon and shows a plot, which is not interactive.
 
-* [polygon_zoom_int.py](https://source.uit.no/mitya/pytools_git/blob/master/polygon_zoom_int.py) 
+* [polygon_zoom_int.py](https://github.com/aleatorius/roms_mypytools/blob/master/pytools_git/polygon_zoom_int.py) 
 
-This tool deals with vertically integrated variable (thus it should have vertical dimension). Mesh plot presents integrated variable on the grid. In usage this script is almost identical to [polygon_zoom_read.py](https://source.uit.no/mitya/pytools_git/blob/master/polygon_zoom_read.py).  
+This tool deals with vertically integrated variable (thus it should have vertical dimension). Mesh plot presents integrated variable on the grid. In usage this script is almost identical to [polygon_zoom_read.py](https://github.com/aleatorius/roms_mypytools/blob/master/pytools_git/polygon_zoom_read.py).  
 Also it prints in the title the "mass" of variable in the area (whole area or polygonal part of it). This value should be scaled afterwards accordingly to horizontal resolution. In the script it is calculating taking a cell area as a dimensionless unit. 
 ```
 python polygon_zoom_int.py -i /global/work/mitya/run/Arctic-20km/ocean_rst_20051212.nc -v phytoplankton  --pout s &
@@ -105,7 +105,7 @@ The coordinate ranges can be provided in percents with respect to grid dimension
 ```
 python polygon_zoom.py -i /global/work/jsk/S800/norseas_800m_avg.nc_2006051212 -v h --xzoom 80:95 --yzoom 5:20 --var_min 217 --var_max 533 
 ```
-Usage of [polygon_zoom_int.py](https://source.uit.no/mitya/pytools_git/blob/master/polygon_zoom_int.py):
+Usage of [polygon_zoom_int.py](https://github.com/aleatorius/roms_mypytools/blob/master/pytools_git/polygon_zoom_int.py):
 
 ```
 python polygon_zoom_int.py -i /global/work/mitya/run/Arctic-20km/archive_2005_cortemp/ocean_avg_2006_06_20_0052.nc -v phytoplankton  --pout s  &
