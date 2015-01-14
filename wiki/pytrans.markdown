@@ -7,7 +7,7 @@ Files:
   * a modified version of [pytrans_write.py](https://github.com/aleatorius/roms_mypytools/blob/master/pytools_git/pytrans_write.py): everything is in one widnow, no pop-ups. 
 * [pytrans_read.py](https://github.com/aleatorius/roms_mypytools/blob/master/pytools_git/pytrans_read.py)
 
-Copy files [pytrans_write.py]https://github.com/aleatorius/roms_mypytools/blob/master/pytools_git/pytrans_write.py) and [pytrans_read.py](https://github.com/aleatorius/roms_mypytools/blob/master/pytools_git/pytrans_read.py) to your directory.
+Copy files [pytrans_write.py](https://github.com/aleatorius/roms_mypytools/blob/master/pytools_git/pytrans_write.py) and [pytrans_read.py](https://github.com/aleatorius/roms_mypytools/blob/master/pytools_git/pytrans_read.py) to your directory.
 
 Usage:
  
