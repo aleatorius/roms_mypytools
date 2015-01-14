@@ -2,7 +2,7 @@ DRAFT
 
 Files:
 
-* [line_zoom.py](https://source.uit.no/mitya/pytools_git/blob/master/line_zoom.py) 
+* [line_zoom.py](https://github.com/aleatorius/roms_mypytools/blob/master/pytools_git/line_zoom.py) 
 
 
 Usage:
