@@ -45,7 +45,8 @@ parser.add_argument(
 '-start', 
 help='regex start', 
 dest ='start', 
-action="store"
+action="store",
+default = None
 )
 
 parser.add_argument(
@@ -240,19 +241,17 @@ class Index_4d:
         global index_start
         global time_all
         self.ind += 1
+        print self.ind
         if self.ind == num_of_rec:
-            index_start += 1
-            try:
-                ncvar_all, time_all = extract_all(file_list[index_start], args.variable)
-                num_of_rec =  ncvar_all.shape[0]
-                num_of_vert = ncvar_all.shape[1]
-                self.ind = 0
-            except:
-                print "reached the right end of the list, going to the lef"
-                ncvar_all, time_all = extract_all(file_list[0], args.variable)
-                num_of_rec =  ncvar_all.shape[0]
-                num_of_vert = ncvar_all.shape[1]
-                self.ind = 0
+             
+             index_start += 1
+             index_start = index_start  % len_of_list
+             print index_start
+             ncvar_all, time_all = extract_all(file_list[index_start], args.variable)
+             num_of_rec =  ncvar_all.shape[0]
+             num_of_vert = ncvar_all.shape[1]
+             self.ind = 0
+                               
         else:
             pass
         i = self.ind 
@@ -281,17 +280,12 @@ class Index_4d:
         self.ind -= 1
         if self.ind == -1:
             index_start -= 1
-            try:
-                ncvar_all, time_all = extract_all(file_list[index_start], args.variable)
-                num_of_rec =  ncvar_all.shape[0]
-                num_of_vert = ncvar_all.shape[1]
-                self.ind = num_of_rec-1
-            except:
-                print "reached the left end of the list, going to the right then"
-                ncvar_all, time_all = extract_all(file_list[-1], args.variable)
-                num_of_rec =  ncvar_all.shape[0]
-                num_of_vert = ncvar_all.shape[1]
-                self.ind = num_of_rec-1
+            index_start = index_start  % len_of_list
+            print index_start
+            ncvar_all, time_all = extract_all(file_list[index_start], args.variable)
+            num_of_rec =  ncvar_all.shape[0]
+            num_of_vert = ncvar_all.shape[1]
+            self.ind = num_of_rec-1
         else:
             pass
         i = self.ind 
@@ -359,18 +353,13 @@ class Index_3d:
         global time_all
         self.ind += 1
         if self.ind == num_of_rec:
-            index_start += 1
-            try:
-                ncvar_all, time_all = extract_all(file_list[index_start], args.variable)
-                num_of_rec =  ncvar_all.shape[0]
-                self.ind = 0
-            except:
-                print "reached the right end of the list, going to the lef"
-                ncvar_all, time_all = extract_all(file_list[0], args.variable)
-                num_of_rec =  ncvar_all.shape[0]
-                self.ind = 0
+             index_start += 1
+             index_start = index_start  % len_of_list
+             ncvar_all, time_all = extract_all(file_list[index_start], args.variable)
+             num_of_rec =  ncvar_all.shape[0]
+             self.ind = 0
         else:
-            pass
+             pass
         i = self.ind 
 
         mx = ma.masked_outside(ncvar_all[i,:], -1e+36,1e+36)[z_range[0]:z_range[1],z_range[2]:z_range[3]]
@@ -390,15 +379,10 @@ class Index_3d:
         self.ind -= 1
         if self.ind == -1:
             index_start -= 1
-            try:
-                ncvar_all, time_all = extract_all(file_list[index_start], args.variable)
-                num_of_rec =  ncvar_all.shape[0]
-                self.ind = num_of_rec-1
-            except:
-                print "reached the left end of the list, going to the right then"
-                ncvar_all, time_all = extract_all(file_list[-1], args.variable)
-                num_of_rec =  ncvar_all.shape[0]
-                self.ind = num_of_rec-1
+            index_start = index_start  % len_of_list
+            ncvar_all, time_all = extract_all(file_list[index_start], args.variable)
+            num_of_rec =  ncvar_all.shape[0]
+            self.ind = num_of_rec-1
         else:
             pass
         i = self.ind 
@@ -448,30 +432,42 @@ if len(file_list)==0:
     exit()
 else:
     pass
-ar_start = glob.glob(args.start+"*")
-if len(ar_start)==1:
-    file_start=ar_start[0]
-else:
-    print "not a unique file start"
-    exit()
-print "file_start", file_start
-index_start=None
-for i,j in enumerate(file_list):
-    print i,j
-    if j==file_start:
-        print i,j
-        index_start=i
-        break
-    else:
-        pass
-if index_start !=None:
-    print "there is a start file in this list"
-try:
-    ncvar_all, time_all = extract_all(file_list[index_start], args.variable)
-except:
-    print "maybe start file is wrong"
-    exit()
+len_of_list = len(file_list)
+print len_of_list
 
+if args.start !=None:
+     ar_start = glob.glob(args.start+"*")
+     print "ar_start", ar_start
+     if len(ar_start)==1:
+          file_start=ar_start[0]
+     else:
+          print "there is no file corresponding to condition specified by prefix -start"
+          #index_start= 0
+          file_start = None
+
+     print "file_start", file_start
+     if file_start != None: 
+          index_start=None
+
+          for i,j in enumerate(file_list):
+               print i,j
+               if j==file_start:
+                    print i,j
+                    index_start=i
+                    break
+               else:
+                    pass
+          if index_start ==None:
+               print "there is no file ",file_start, " in the list. Starting with the first file then"
+               index_start = 0 
+          else:
+               pass
+     else:
+          index_start= 0
+else:
+     index_start= 0
+
+ncvar_all, time_all = extract_all(file_list[index_start], args.variable)
 dim = size(ncvar_all.shape)
 
 print 'dim', dim
