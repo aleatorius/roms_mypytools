@@ -2,7 +2,6 @@
 ##!/home/ntnu/mitya/virt_env/virt1/bin/python -B
 ## Dmitry Shcherbin, 2014.07.01
 ##with navigation buttons, 2015.01.05
-
 import numpy as np
 from numpy import *
 from netCDF4 import *
@@ -14,6 +13,7 @@ import datetime
 from datetime import date, time
 import pprint
 from pprint import *
+
 
 __author__='Dmitry Shcherbin'
 __email__='dmitry.shcherbin@gmail.com'
@@ -47,6 +47,20 @@ help='regex start',
 dest ='start', 
 action="store",
 default = None
+)
+parser.add_argument(
+'--fast_time', 
+help='fast back and forward', 
+dest ='fast_time', 
+action="store",
+type=int
+)
+parser.add_argument(
+'--fast_vert', 
+help='fast back and forward', 
+dest ='fast_vert', 
+action="store",
+type=int
 )
 
 parser.add_argument(
@@ -120,6 +134,10 @@ default = None
 
 args = parser.parse_args()
 
+if args.fast_vert:
+     print args.fast_vert
+else:
+     print "no forwarding"
 #if not (args.inf):
 #    parser.error('please give a file name')
 #if not os.path.isfile(args.inf):
@@ -230,143 +248,93 @@ def extract_all(inf, variable):
 
 
 
-class Index_4d:
-    ind = args.time
-    ind_v = args.vert
-    def next(self, event):
-        global mx
-        global ncvar_all
-        global num_of_rec
-        global num_of_vert
-        global index_start
-        global time_all
-        self.ind += 1
-        print self.ind
-        if self.ind == num_of_rec:
-             
-             index_start += 1
-             index_start = index_start  % len_of_list
-             print index_start
-             ncvar_all, time_all = extract_all(file_list[index_start], args.variable)
-             num_of_rec =  ncvar_all.shape[0]
-             num_of_vert = ncvar_all.shape[1]
-             self.ind = 0
-                               
-        else:
-            pass
-        i = self.ind 
-        j = self.ind_v % num_of_vert
-        print i,j
-        mx = ma.masked_outside(ncvar_all[i,j,:], -1e+36,1e+36)[z_range[0]:z_range[1],z_range[2]:z_range[3]]
-        remove_text_and_dot(ax)
-        p.set_array(mx.ravel())
-        p.set_clim(vmin=np.amin(mx), vmax=np.amax(mx))
-        if j==num_of_vert-1:
-            ax.set_title(args.variable+' '+ date_time(time_all[i])+'\n sigma: '+str(j)+' (surface)')
-        elif j==0:
-            ax.set_title(args.variable+' '+ date_time(time_all[i])+'\n sigma: '+str(j)+' (bottom)')
-        else:
-            ax.set_title(args.variable+' '+ date_time(time_all[i])+'\n sigma: '+str(j))
-        ax.axis('tight')
-        plt.draw()
+class Index_vert_nav:
+     def __init__(self,step):
+          self.step = step
+     def up(self, event):
+          global mx
+          global ind
+          global ind_v
+          ind_v += self.step
+          j = ind_v % num_of_vert
+          i = ind % num_of_rec
+          print i,j
+          mx = ma.masked_outside(ncvar_all[i,j,:], -1e+36,1e+36)[z_range[0]:z_range[1],z_range[2]:z_range[3]]
+          remove_text_and_dot(ax)
+          p.set_array(mx.ravel())
+          p.set_clim(vmin=np.amin(mx), vmax=np.amax(mx))
+          if j==num_of_vert-1:
+               ax.set_title(args.variable+' '+ date_time(time_all[i])+'\n sigma: '+str(j)+' (surface)')
+          elif j==0:
+               ax.set_title(args.variable+' '+ date_time(time_all[i])+'\n sigma: '+str(j)+' (bottom)')
+          else:
+               ax.set_title(args.variable+' '+ date_time(time_all[i])+'\n sigma: '+str(j))
+          ax.axis('tight')
+          plt.draw()
 
-    def prev(self, event):
-        global mx
-        global ncvar_all
-        global num_of_rec
-        global num_of_vert
-        global index_start
-        global time_all
-        self.ind -= 1
-        if self.ind == -1:
-            index_start -= 1
-            index_start = index_start  % len_of_list
-            print index_start
-            ncvar_all, time_all = extract_all(file_list[index_start], args.variable)
-            num_of_rec =  ncvar_all.shape[0]
-            num_of_vert = ncvar_all.shape[1]
-            self.ind = num_of_rec-1
-        else:
-            pass
-        i = self.ind 
-        j = self.ind_v % num_of_vert
-        print i,j
-        mx = ma.masked_outside(ncvar_all[i,j,:], -1e+36,1e+36)[z_range[0]:z_range[1],z_range[2]:z_range[3]]
-        remove_text_and_dot(ax)
-        p.set_clim(vmin=np.amin(mx), vmax=np.amax(mx))
-        p.set_array(mx.ravel())
-        if j==num_of_vert-1:
-            ax.set_title(args.variable+' '+ date_time(time_all[i])+'\n sigma: '+str(j)+' (surface)')
-        elif j==0:
-            ax.set_title(args.variable+' '+ date_time(time_all[i])+'\n sigma: '+str(j)+' (bottom)')
-        else:
-            ax.set_title(args.variable+' '+ date_time(time_all[i])+'\n sigma: '+str(j))
-        ax.axis('tight')
-        plt.draw()
+     def down(self, event):
+          global mx
+          global ind
+          global ind_v
+          ind_v -= self.step
+          i = ind % num_of_rec
+          j = ind_v % num_of_vert
+          print i,j
+          mx = ma.masked_outside(ncvar_all[i,j,:], -1e+36,1e+36)[z_range[0]:z_range[1],z_range[2]:z_range[3]]
+          remove_text_and_dot(ax)
+          p.set_array(mx.ravel())
+          p.set_clim(vmin=np.amin(mx), vmax=np.amax(mx))
+          if j==num_of_vert-1:
+               ax.set_title(args.variable+' '+ date_time(time_all[i])+'\n sigma: '+str(j)+' (surface)')
+          elif j==0:
+               ax.set_title(args.variable+' '+ date_time(time_all[i])+'\n sigma: '+str(j)+' (bottom)')
+          else:
+               ax.set_title(args.variable+' '+ date_time(time_all[i])+'\n sigma: '+str(j))
+          ax.axis('tight')
+          plt.draw()
 
-    def up(self, event):
-        global mx
-        self.ind_v += 1
-        i = self.ind % num_of_rec
-        j = self.ind_v % num_of_vert
-        print i,j
-        mx = ma.masked_outside(ncvar_all[i,j,:], -1e+36,1e+36)[z_range[0]:z_range[1],z_range[2]:z_range[3]]
-        remove_text_and_dot(ax)
-        p.set_array(mx.ravel())
-        p.set_clim(vmin=np.amin(mx), vmax=np.amax(mx))
-        if j==num_of_vert-1:
-            ax.set_title(args.variable+' '+ date_time(time_all[i])+'\n sigma: '+str(j)+' (surface)')
-        elif j==0:
-            ax.set_title(args.variable+' '+ date_time(time_all[i])+'\n sigma: '+str(j)+' (bottom)')
-        else:
-            ax.set_title(args.variable+' '+ date_time(time_all[i])+'\n sigma: '+str(j))
-        ax.axis('tight')
-        plt.draw()
 
-    def down(self, event):
-        global mx
-        self.ind_v -= 1
-        i = self.ind % num_of_rec
-        j = self.ind_v % num_of_vert
-        print i,j
-
-        mx = ma.masked_outside(ncvar_all[i,j,:], -1e+36,1e+36)[z_range[0]:z_range[1],z_range[2]:z_range[3]]
-        remove_text_and_dot(ax)
-        p.set_array(mx.ravel())
-        p.set_clim(vmin=np.amin(mx), vmax=np.amax(mx))
-        if j==num_of_vert-1:
-            ax.set_title(args.variable+' '+ date_time(time_all[i])+'\n sigma: '+str(j)+' (surface)')
-        elif j==0:
-            ax.set_title(args.variable+' '+ date_time(time_all[i])+'\n sigma: '+str(j)+' (bottom)')
-        else:
-            ax.set_title(args.variable+' '+ date_time(time_all[i])+'\n sigma: '+str(j))
-        ax.axis('tight')
-        plt.draw()
-
-class Index_3d:
-    ind = args.time
+class Index_time_nav:
+    def __init__(self,step):
+         self.step = step
+    
     def next(self, event):
         global mx
         global ncvar_all
         global num_of_rec
         global index_start
         global time_all
-        self.ind += 1
-        if self.ind == num_of_rec:
-             index_start += 1
+        global ind
+        global ind_v
+        global dim
+        ind += self.step
+        if ind >= num_of_rec:
+             index_start += ind/num_of_rec #we assume that usually num_of_rec is the same, if it is not the same - it will also work, but...
              index_start = index_start  % len_of_list
+             ind = ind % num_of_rec
              ncvar_all, time_all = extract_all(file_list[index_start], args.variable)
              num_of_rec =  ncvar_all.shape[0]
-             self.ind = 0
+
         else:
              pass
-        i = self.ind 
-
-        mx = ma.masked_outside(ncvar_all[i,:], -1e+36,1e+36)[z_range[0]:z_range[1],z_range[2]:z_range[3]]
+        i = ind 
+        if dim == 3:
+             print i
+             mx = ma.masked_outside(ncvar_all[i,:], -1e+36,1e+36)[z_range[0]:z_range[1],z_range[2]:z_range[3]]
+             ax.set_title(args.variable+' '+ date_time(time_all[i]))
+        elif dim == 4:
+             j = ind_v % num_of_vert
+             print i,j
+             mx = ma.masked_outside(ncvar_all[i,j,:], -1e+36,1e+36)[z_range[0]:z_range[1],z_range[2]:z_range[3]]             
+             if j==num_of_vert-1:
+                  ax.set_title(args.variable+' '+ date_time(time_all[i])+'\n sigma: '+str(j)+' (surface)')
+             elif j==0:
+                  ax.set_title(args.variable+' '+ date_time(time_all[i])+'\n sigma: '+str(j)+' (bottom)')
+             else:
+                  ax.set_title(args.variable+' '+ date_time(time_all[i])+'\n sigma: '+str(j))
         remove_text_and_dot(ax)
         p.set_array(mx.ravel())
         p.set_clim(vmin=np.amin(mx), vmax=np.amax(mx))
-        ax.set_title(args.variable+' '+ date_time(time_all[i]))
         ax.axis('tight')
         plt.draw()
 
@@ -376,21 +344,38 @@ class Index_3d:
         global num_of_rec
         global index_start
         global time_all
-        self.ind -= 1
-        if self.ind == -1:
-            index_start -= 1
+        global ind
+        global ind_v
+        global dim
+        print ind
+        
+        ind -= self.step
+        if ind <= -1:
+            index_start -= 1+abs(ind)/num_of_rec #we assume that usually num_of_rec is the same, if it is not the same - it will also work, but...
             index_start = index_start  % len_of_list
+            ind = ind % num_of_rec
             ncvar_all, time_all = extract_all(file_list[index_start], args.variable)
             num_of_rec =  ncvar_all.shape[0]
-            self.ind = num_of_rec-1
         else:
             pass
-        i = self.ind 
-        mx = ma.masked_outside(ncvar_all[i,:], -1e+36,1e+36)[z_range[0]:z_range[1],z_range[2]:z_range[3]]
+        i = ind 
+        if dim == 3:
+             print i
+             mx = ma.masked_outside(ncvar_all[i,:], -1e+36,1e+36)[z_range[0]:z_range[1],z_range[2]:z_range[3]]
+             ax.set_title(args.variable+' '+ date_time(time_all[i]))
+        elif dim == 4:
+             j = ind_v % num_of_vert
+             print i,j
+             mx = ma.masked_outside(ncvar_all[i,j,:], -1e+36,1e+36)[z_range[0]:z_range[1],z_range[2]:z_range[3]]             
+             if j==num_of_vert-1:
+                  ax.set_title(args.variable+' '+ date_time(time_all[i])+'\n sigma: '+str(j)+' (surface)')
+             elif j==0:
+                  ax.set_title(args.variable+' '+ date_time(time_all[i])+'\n sigma: '+str(j)+' (bottom)')
+             else:
+                  ax.set_title(args.variable+' '+ date_time(time_all[i])+'\n sigma: '+str(j))
         remove_text_and_dot(ax)
         p.set_array(mx.ravel())
         p.set_clim(vmin=np.amin(mx), vmax=np.amax(mx))
-        ax.set_title(args.variable+' '+ date_time(time_all[i]))
         ax.axis('tight')
         plt.draw()
 
@@ -482,8 +467,14 @@ if dim == 4:
     from pylab import *
     from matplotlib import colors, cm
     from matplotlib.widgets import Button
-
+    from matplotlib import rc
+    import matplotlib.font_manager
+    list = matplotlib.font_manager.get_fontconfig_fonts()
+    names = [matplotlib.font_manager.FontProperties(fname=fname).get_name() for fname in list]
+    print names
     matplotlib.rc('font', family='DejaVu Sans')
+
+    
     #this is to make unicode characters in the plot
     mx = ma.masked_outside(ncvar_all[args.time % num_of_rec,args.vert % num_of_vert,:], -1e+36,1e+36)
     cmap=plt.cm.spectral
@@ -498,29 +489,55 @@ if dim == 4:
     ax.axis('tight')
 
     fig.canvas.mpl_connect('button_press_event', onclick)
-
-    callback = Index_4d()
-
+    ind = args.time
+    ind_v = args.vert
+    callback_time = Index_time_nav(1)
+    callback_vert = Index_vert_nav(1)
     axprev = fig.add_axes([0.35, 0.015, 0.05, 0.055])
     axnext = fig.add_axes([0.45, 0.015, 0.05, 0.055])
 
     bnext = Button(axnext, u"\u21e8")
     bnext.label.set_fontsize("xx-large")
-    bnext.on_clicked(callback.next)
+    bnext.on_clicked(callback_time.next)
     bprev = Button(axprev, u"\u21e6")
     bprev.label.set_fontsize("xx-large")
-    bprev.on_clicked(callback.prev)
+    bprev.on_clicked(callback_time.prev)
 
     axup = fig.add_axes([0.9, 0.55, 0.05, 0.05])
     axdown = fig.add_axes([0.9, 0.45, 0.05, 0.05])
 
     bup = Button(axup, u"\u21e7")
     bup.label.set_fontsize("xx-large")
-    bup.on_clicked(callback.up)
+    bup.on_clicked(callback_vert.up)
     bdown = Button(axdown, u"\u21e9")
     bdown.label.set_fontsize("xx-large")
-    bdown.on_clicked(callback.down)
+    bdown.on_clicked(callback_vert.down)
 
+
+    if args.fast_time:
+         callback_fast_time = Index_time_nav(args.fast_time)
+         ax_fast_prev = fig.add_axes([0.25, 0.015, 0.05, 0.055])
+         ax_fast_next = fig.add_axes([0.55, 0.015, 0.05, 0.055])
+         bfast_next = Button(ax_fast_next, u"\u25B7")
+         bfast_next.label.set_fontsize("xx-large")
+         bfast_next.on_clicked(callback_fast_time.next)
+         bfast_prev = Button(ax_fast_prev, u"\u25C1")
+         bfast_prev.label.set_fontsize("xx-large")
+         bfast_prev.on_clicked(callback_fast_time.prev)
+    else:
+         pass
+
+    if args.fast_vert:
+         callback_fast_vert = Index_vert_nav(args.fast_vert)
+         ax_fast_up = fig.add_axes([0.9, 0.65, 0.05, 0.05])
+         ax_fast_down = fig.add_axes([0.9, 0.35, 0.05, 0.05])
+
+         b_fast_up = Button(ax_fast_up, u"\u25B3")
+         b_fast_up.label.set_fontsize("xx-large")
+         b_fast_up.on_clicked(callback_fast_vert.up)
+         b_fast_down = Button(ax_fast_down, u"\u25BD")
+         b_fast_down.label.set_fontsize("xx-large")
+         b_fast_down.on_clicked(callback_fast_vert.down)
 
     if args.var_min or args.var_max:
         if args.var_min and args.var_max:
@@ -567,8 +584,9 @@ elif dim == 3:
 
 
     fig.canvas.mpl_connect('button_press_event', onclick)
+    ind = args.time
 
-    callback = Index_3d()
+    callback = Index_time_nav(1)
 
     axprev = fig.add_axes([0.35, 0.015, 0.05, 0.055])
     axnext = fig.add_axes([0.45, 0.015, 0.05, 0.055])
@@ -579,6 +597,21 @@ elif dim == 3:
     bprev = Button(axprev, u"\u21e6")
     bprev.label.set_fontsize("xx-large")
     bprev.on_clicked(callback.prev)
+
+    if args.fast_time:
+         callback_fast_time = Index_time_nav(args.fast_time)
+         ax_fast_prev = fig.add_axes([0.25, 0.015, 0.05, 0.055])
+         ax_fast_next = fig.add_axes([0.55, 0.015, 0.05, 0.055])
+         bfast_next = Button(ax_fast_next, u"\u25B7")
+         bfast_next.label.set_fontsize("xx-large")
+         bfast_next.on_clicked(callback_fast_time.next)
+         bfast_prev = Button(ax_fast_prev, u"\u25C1")
+         bfast_prev.label.set_fontsize("xx-large")
+         bfast_prev.on_clicked(callback_fast_time.prev)
+    else:
+         pass
+
+
 
     if args.var_min or args.var_max:
         if args.var_min and args.var_max:
