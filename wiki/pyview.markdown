@@ -101,6 +101,28 @@ To navigate along time record user should click left and right arrows, if the la
 
 To navigate along vertical layers user should click up and down arrows. 
 
+User can add fast-forward (and backwards) button with the numbers which specify how many steps should be skipped:
+
+```
+python pyview_list -list /global/work/apn/Arctic-4km_results/1993_2010_jens/ocean_avg_0  -v salt --fast_time 34 --fast_vert 5
+```
+
+here the clicking on white left- right up- down- buttons will make time records and vertical levels skipped by 34 and 5 records accordingly.
+If you do not specify  ```--fast_time 34``` or ```--fast_vert 5``` then these corresponding buttons will not show up.
+
+![pyview](fast.png)
+
+
+NB:
+Do not put ```*``` at the end:
+```
+-list /global/work/mitya/run/Arctic-20km/archive_2005_cortemp/ocean_avg_*2005*
+```
+
+if you do want it there, then:
+```
+-list "/global/work/mitya/run/Arctic-20km/archive_2005_cortemp/ocean_avg_*2005*"
+```
 
 
 ### The command line interactive script [pyview](https://github.com/aleatorius/roms_mypytools/blob/master/pytools_git/pyview):
