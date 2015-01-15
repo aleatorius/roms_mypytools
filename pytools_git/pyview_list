@@ -1,4 +1,5 @@
 #!/usr/bin/env python 
+# -*- coding: utf-8 -*-
 ##!/home/ntnu/mitya/virt_env/virt1/bin/python -B
 ## Dmitry Shcherbin, 2014.07.01
 ##with navigation buttons, 2015.01.05
@@ -212,7 +213,7 @@ def unpack(ina):
      return outa
 
 def extract_all(inf, variable):
-     f = Dataset(inf)
+     f = Dataset(inf.replace('$',''))
      if str(variable) in f.variables.keys():
           print '\n In the file', inf
           print 'variable', variable, 'exists'
@@ -451,8 +452,8 @@ if args.start !=None:
           index_start= 0
 else:
      index_start= 0
-
-ncvar_all, time_all = extract_all(file_list[index_start], args.variable)
+print index_start, file_list[index_start]
+ncvar_all, time_all = extract_all(str(file_list[index_start]), args.variable)
 dim = size(ncvar_all.shape)
 
 print 'dim', dim
@@ -468,10 +469,10 @@ if dim == 4:
     from matplotlib import colors, cm
     from matplotlib.widgets import Button
     from matplotlib import rc
-    import matplotlib.font_manager
-    list = matplotlib.font_manager.get_fontconfig_fonts()
-    names = [matplotlib.font_manager.FontProperties(fname=fname).get_name() for fname in list]
-    print names
+#    import matplotlib.font_manager
+#    list = matplotlib.font_manager.get_fontconfig_fonts()
+#    names = [matplotlib.font_manager.FontProperties(fname=fname).get_name() for fname in list]
+#    print names
     matplotlib.rc('font', family='DejaVu Sans')
 
     
