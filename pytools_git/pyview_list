@@ -25,20 +25,14 @@ usage='python pyview_nb -i /global/work/apn/S800_short/norseas_800m_avg_2058.nc 
 )
 
 parser.add_argument(
-'-i', 
-help='input file', 
-dest='inf', 
-action="store"
-)
-parser.add_argument(
 '-v', 
 help='variable', 
 dest ='variable', 
 action="store"
 )
 parser.add_argument(
-'-list', 
-help='regex list', 
+'-i', 
+help='regex list of files, or just one file', 
 dest ='list', 
 action="store"
 )
