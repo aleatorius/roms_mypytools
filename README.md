@@ -1,12 +1,13 @@
 #### Visualization tools:
 
-* [graphically interactive and command line transects viewers](https://github.com/aleatorius/roms_mypytools/blob/master/wiki/pytrans.markdown)
-
-* [graphically interactive polygon zoom tool and rangefinder](https://github.com/aleatorius/roms_mypytools/blob/master/wiki/polygon_zoom.markdown)
-
 * [2d s-horizontal mesh graphics viewer - command line and GUI scripts](https://github.com/aleatorius/roms_mypytools/blob/master/wiki/pyview.markdown)
 
-* [graphically interactive line zoom tool](https://github.com/aleatorius/roms_mypytools/blob/master/wiki/linezoom.markdown)
+
+* [transects viewers](https://github.com/aleatorius/roms_mypytools/blob/master/wiki/pytrans.markdown)
+
+* [polygon zoom tool and rangefinder](https://github.com/aleatorius/roms_mypytools/blob/master/wiki/polygon_zoom.markdown)
+
+* [line zoom tool](https://github.com/aleatorius/roms_mypytools/blob/master/wiki/linezoom.markdown)
 
 * [animation: snapshots and merging](https://github.com/aleatorius/roms_mypytools/wiki/animation)
 
