@@ -310,113 +310,61 @@ def get_line(x1, y1, x2, y2):
 
 
 
-#event handler - original sample is taken from matplotlib examples (LineBuilder event handler)
+def polygon_points(vertices):
+    cycle=vertices
+    cycle.append(vertices[0])
+    lx,ly,vertex =[],[],[]
+    for i in range(0,len(cycle)-1):
+        points=get_line(int((cycle[i][0])), int((cycle[i][1])), int((cycle[i+1][0])),int((cycle[i+1][1])))
+        for j in points:
+            lx.append(j[0])
+            ly.append(j[1])
+            vertex.append(0)
+        vertex[-1]=1
+    vertex[0]=1
+    return lx,ly,vertex
 
-class LineBuilder:
-    def __init__(self, line, mx, time, lat, lon, x_0, y_0):
-        self.line = line
-        self.mx = mx
-        self.time = time
-        self.lat = lat
-        self.lon = lon
-        self.x_0 = x_0
-        self.y_0 = y_0
-        self.xs = list(line.get_xdata())
-        self.ys = list(line.get_ydata())
-        self.wout = 0
-        self.cid = line.figure.canvas.mpl_connect('button_press_event', self)
- 
 
-    def __call__(self, event):
-        print 'click', event
-        if event.inaxes!=self.line.axes: return
-        if event.button == 1:
-            self.xs.append(event.xdata)
-            self.ys.append(event.ydata)
-            self.line.set_data(self.xs, self.ys)
-            self.line.figure.canvas.draw()
-        if  event.button == 3:
-            vertices=zip(self.xs,self.ys)
-            if args.pout != None:
-                try:
-                    out_file = open(args.pout+"_"+str(self.wout), "w")
-                except IOError:
-                    #e = sys.exc_info()[0]
-                    #print e
-                    print "cannot create file SEGMENTS in this directory, you don't have write permission here  - creating it in your home ~/segments"
-                    out_file = open(os.path.expanduser('~/'+args.pout+"_"+str(self.wout)), "w")
-
-                for i in vertices:
-                    string = "("+str(x_0+i[0])+","+str(y_0+i[1])+")\n"
-                    out_file.write(string)
-                out_file.close()
-                self.wout=self.wout+1
-            else:
-                pass
-            args.pout = "test"
+def var_to_polygon(mx,vertices,lx,ly):
+    minx=min(np.asarray(lx))
+    miny=min(np.asarray(ly))
+    maxx=max(np.asarray(lx))
+    maxy=max(np.asarray(ly))
+    mask_polygon = np.zeros(( maxy-miny+1, maxx-minx+1 ))
+    poly_vert=[]
+    for i in vertices:
+        poly_vert.append((i[1]-miny,i[0]-minx))
             
-            if len(self.xs) > 1:
-                cycle=vertices
-                cycle.append((self.xs[0],self.ys[0]))
-                lat_vert, lon_vert,vert,ncv,absx,lx,ly =[],[],[],[],[],[],[]
-                label_vert=[]
-                #---------------Line plot----------------------------
-                for i in range(0,len(self.xs)):
-                    points=get_line(int((cycle[i][0])), int((cycle[i][1])), int((cycle[i+1][0])),int((cycle[i+1][1])))
-                    for j in points:
-                        lx.append(j[0])
-                        ly.append(j[1])
-                        ncv.append(self.mx[j[1],j[0]])
-                        lat_vert.append(self.lat[j[1],j[0]])
-                        lon_vert.append(self.lon[j[1],j[0]])
-                        if len(lx) ==1:
-                            absx.append(lx[0])
-                        else:
-                            absx.append(absx[-1]+int(sqrt((lx[-1]-lx[-2])**2+(ly[-1]-ly[-2])**2)))
-                    if len(vert)==0:
-                        vert.append((absx[0],lat_vert[0],lon_vert[0]))
-                        vert.append((absx[-1],lat_vert[-1],lon_vert[-1]))
-                    else:
-                        vert.append((absx[-1],lat_vert[-1],lon_vert[-1]))
+    path = Path(poly_vert)
+    print minx,maxx, miny,maxy
+    mx_slice = mx[(miny):(maxy+1), (minx):(maxx+1)]
+    for index, val in np.ndenumerate(mx_slice):
+        if path.contains_point(index)==1:
+            mask_polygon[index]=1
+        else:
+            pass
+    mx_slice_masked = ma.masked_where(mask_polygon==0,mx_slice)
+    mx_slice_out = ma.masked_where(mask_polygon==1,mx_slice)
 
-                #Line plot parameters and line plot itself
+    return mx_slice_masked, mx_slice_out
 
-
-                # Polygon mask
-                mask_polygon = np.zeros(( np.amax(np.asarray(ly))-np.amin(np.asarray(ly))+1, np.amax(np.asarray(lx))-np.amin(np.asarray(lx))+1 ))
-                poly_vert=[]
-                for i in vertices:
-                    poly_vert.append((i[1]-np.amin(np.asarray(ly)),i[0]-np.amin(np.asarray(lx))))
-            
-                path = Path(poly_vert)
-                minx=min(np.asarray(lx))
-                miny=min(np.asarray(ly))
-                maxx=max(np.asarray(lx))
-                maxy=max(np.asarray(ly))
-           
-                print minx,maxx, miny,maxy
-                mx_slice = mx[(miny):(maxy+1), (minx):(maxx+1)]
-                for index, val in np.ndenumerate(mx_slice):
-                    if path.contains_point(index)==1:
-                        mask_polygon[index]=1
-                    else:
-                        pass
-                mx_slice_masked = ma.masked_where(mask_polygon==0,mx_slice)
-                mx_slice_out = ma.masked_where(mask_polygon==1,mx_slice)
-                plot = plot_mesh_and_line(mx_slice_masked,mx_slice_out,absx,ncv,lx,ly,x_0,y_0,vert, vertices, self.time)
-                print plot
-                self.xs = []
-                self.ys = []
-                plt.show()
-
-            else:
-                print "click one more time please!"
-            
-        if event.dblclick ==  True:
-            print "double click detected"
-            line.figure.canvas.mpl_disconnect(self.cid)
-            exit()
-
+def var_to_line(mx,lat,lon,vertices,lx,ly,vertex):
+    lat_vert, lon_vert,vert,ncv,absx =[],[],[],[],[]
+    for j in zip(lx,ly):
+        ncv.append(mx[j[1],j[0]])
+        lat_vert.append(lat[j[1],j[0]])
+        lon_vert.append(lon[j[1],j[0]])
+        if len(ncv) ==1:
+            absx.append(j[0])
+        else:
+            absx.append(absx[-1]+int(sqrt((lx[-1]-lx[-2])**2+(ly[-1]-ly[-2])**2)))
+    for index, v in np.ndenumerate(vertex):
+        if v ==1:
+            vert.append((absx[index[0]],lat_vert[index[0]],lon_vert[index[0]]))
+        else:
+            pass
+  
+    return absx, ncv, vert
 
 def plot_mesh_and_line(mx_slice_masked,mx_slice_out,absx,var_line,lx,ly,x_0,y_0,vert, vertices, time):
     fig_line = plt.figure(figsize=(22, 8))
@@ -483,6 +431,70 @@ def plot_mesh_and_line(mx_slice_masked,mx_slice_out,absx,var_line,lx,ly,x_0,y_0,
 
     return True
 
+
+
+
+#event handler - original sample is taken from matplotlib examples (LineBuilder event handler)
+
+class LineBuilder:
+    def __init__(self, line, mx, time, lat, lon, x_0, y_0):
+        self.line = line
+        self.mx = mx
+        self.time = time
+        self.lat = lat
+        self.lon = lon
+        self.x_0 = x_0
+        self.y_0 = y_0
+        self.xs = list(line.get_xdata())
+        self.ys = list(line.get_ydata())
+        self.wout = 0
+        self.cid = line.figure.canvas.mpl_connect('button_press_event', self)
+ 
+
+    def __call__(self, event):
+        print 'click', event
+        if event.inaxes!=self.line.axes: return
+        if event.button == 1:
+            self.xs.append(event.xdata)
+            self.ys.append(event.ydata)
+            self.line.set_data(self.xs, self.ys)
+            self.line.figure.canvas.draw()
+        if  event.button == 3:
+            vertices=zip(self.xs,self.ys)
+            if args.pout != None:
+                try:
+                    out_file = open(args.pout+"_"+str(self.wout), "w")
+                except IOError:
+                    #e = sys.exc_info()[0]
+                    #print e
+                    print "cannot create file SEGMENTS in this directory, you don't have write permission here  - creating it in your home ~/segments"
+                    out_file = open(os.path.expanduser('~/'+args.pout+"_"+str(self.wout)), "w")
+
+                for i in vertices:
+                    string = "("+str(x_0+i[0])+","+str(y_0+i[1])+")\n"
+                    out_file.write(string)
+                out_file.close()
+                self.wout=self.wout+1
+            else:
+                pass
+
+            if len(vertices) > 1:
+                lx, ly, vertex = polygon_points(vertices)
+                absx, ncv, vert = var_to_line(self.mx, self.lat, self.lon, vertices,lx,ly,vertex)
+                mx_slice_masked, mx_slice_out = var_to_polygon(self.mx,vertices,lx,ly)
+                plot = plot_mesh_and_line(mx_slice_masked,mx_slice_out,absx,ncv,lx,ly,x_0,y_0,vert, vertices, self.time)
+                print plot
+                self.xs = []
+                self.ys = []
+                plt.show()
+
+            else:
+                print "click one more time please!"
+            
+        if event.dblclick ==  True:
+            print "double click detected"
+            line.figure.canvas.mpl_disconnect(self.cid)
+            exit()
 
 
 #extract data from netcdf
@@ -656,59 +668,25 @@ else:
     for line in file:
         i =line.replace("(","").replace(")","").replace(","," ")
         print i.split()
-        xs.append(int(float(i.split()[0])))
-        ys.append(int(float(i.split()[1])))
+        try:
+            xs.append(int(float(i.split()[0])))
+            ys.append(int(float(i.split()[1])))
+        except:
+            print "maybe an empty line"
+            print line
+            print xs, ys
+            pass
     file.close()
     vertices=zip(xs,ys)
-    if len(xs) > 1:
-        cycle=vertices
-        cycle.append((xs[0],ys[0]))
-        lat_vert, lon_vert,vert,ncv,absx,lx,ly =[],[],[],[],[],[],[]
-        label_vert=[]
-                #---------------Line plot----------------------------
-        for i in range(0,len(xs)):
-            points=get_line(int((cycle[i][0])), int((cycle[i][1])), int((cycle[i+1][0])),int((cycle[i+1][1])))
-            for j in points:
-                lx.append(j[0])
-                ly.append(j[1])
-                ncv.append(mx[j[1],j[0]])
-                lat_vert.append(lat[j[1],j[0]])
-                lon_vert.append(lon[j[1],j[0]])
-                if len(lx) ==1:
-                    absx.append(lx[0])
-                else:
-                    absx.append(absx[-1]+int(sqrt((lx[-1]-lx[-2])**2+(ly[-1]-ly[-2])**2)))
-            if len(vert)==0:
-                vert.append((absx[0],lat_vert[0],lon_vert[0]))
-                vert.append((absx[-1],lat_vert[-1],lon_vert[-1]))
-            else:
-                vert.append((absx[-1],lat_vert[-1],lon_vert[-1]))
-
-                #Line plot parameters and line plot itself
-
-
-                # Polygon mask
-        mask_polygon = np.zeros(( np.amax(np.asarray(ly))-np.amin(np.asarray(ly))+1, np.amax(np.asarray(lx))-np.amin(np.asarray(lx))+1 ))
-        poly_vert=[]
-        for i in vertices:
-            poly_vert.append((i[1]-np.amin(np.asarray(ly)),i[0]-np.amin(np.asarray(lx))))
-            
-        path = Path(poly_vert)
-        minx=min(np.asarray(lx))
-        miny=min(np.asarray(ly))
-        maxx=max(np.asarray(lx))
-        maxy=max(np.asarray(ly))
-           
-        print minx,maxx, miny,maxy
-        mx_slice = mx[(miny):(maxy+1), (minx):(maxx+1)]
-        for index, val in np.ndenumerate(mx_slice):
-            if path.contains_point(index)==1:
-                mask_polygon[index]=1
-            else:
-                pass
-        mx_slice_masked = ma.masked_where(mask_polygon==0,mx_slice)
-        mx_slice_out = ma.masked_where(mask_polygon==1,mx_slice)
+    if len(vertices) > 1:
+        lx, ly, vertex = polygon_points(vertices)
+        absx, ncv, vert = var_to_line(mx, lat, lon, vertices,lx,ly,vertex)
+        mx_slice_masked, mx_slice_out = var_to_polygon(mx,vertices,lx,ly)
         plot = plot_mesh_and_line(mx_slice_masked,mx_slice_out,absx,ncv,lx,ly,x_0,y_0,vert, vertices, current_time[args.time])
         print plot
+    else:
+        print "just one point in the file ",args.pin
+        print "provide more"
+        sys.exit()
 
 plt.show()

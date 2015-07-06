@@ -36,6 +36,7 @@ parser.add_argument('--yzoom', help='zoom along y(?) direction, range is defined
 parser.add_argument('--var_min', help='minimum value of variable', dest ='var_min', action="store", type=float, default = None)
 parser.add_argument('--var_max', help='minimum value of variable', dest ='var_max', action="store", type=float, default = None)
 parser.add_argument('--title', help='insert title', dest ='title', action="store", default = '')
+parser.add_argument('--defect', help='plot defects', dest ='defect', action="store", type= float)
 #parser.add_argument('--title', help='insert title', dest ='title', action="store", default = '')
 
 args = parser.parse_args()
@@ -188,6 +189,16 @@ def snapshot(framefile):
             pass
         plt.axis('tight')
         plt.title(args.title +' '+ date_time(meta[1][rec])+'\n' + args.variable +': max= '+ str(maxval) + ' min = '+ str(minval))
+        if args.defect:
+            xd = []
+            yd= []
+            print ncvar[rec,:].shape
+            for i,j in np.ndenumerate(ncvar[rec,:]):
+                if (j> args.defect) and (j < 1e+36):
+                    print j,i
+                    xd.append(i[0])
+                    yd.append(i[1])
+            plt.plot(yd,xd,'ro', markersize=5)
         directory ='./'+str(args.dir)+'/'
         if os.path.isdir(directory)== False:
             os.makedirs(directory)

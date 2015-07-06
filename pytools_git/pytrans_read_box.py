@@ -27,14 +27,13 @@ parser.add_argument('--extras', help='s-layers', dest='extras',choices=('yes', '
 parser.add_argument('--interpolate', help='vertical interpolation, off by default', choices=('yes', 'no'), dest='interpolate', action="store", default="no")
 parser.add_argument('--time_rec', help='time rec', dest ='time_rec', action="store", default="ocean_time")
 parser.add_argument('--time', help='time counter', dest ='time', action="store", type=int, default=0)
-parser.add_argument('--vert', help='vertical coordinate number', dest ='vert', action="store", type=int, default=34)
+parser.add_argument('--vert', help='vertical coordinate number', dest ='vert', action="store", type=int, default=0)
 parser.add_argument('--xzoom', help='zoom along x(?) direction, range is defined in percents', dest ='xzoom', action="store",  default='0:100')
 parser.add_argument('--yzoom', help='zoom along y(?) direction, range is defined in percents', dest ='yzoom', action="store",  default='0:100')
 parser.add_argument('--var_min', help='minimum value of variable', dest ='var_min', action="store", type=float, default = None)
 parser.add_argument('--var_max', help='minimum value of variable', dest ='var_max', action="store", type=float, default = None)
 parser.add_argument('--depth_min', help='min depth, positive value', dest ='depth_min', action="store", type=float, default = None)
 parser.add_argument('--depth_max', help='max depth, positive value', dest ='depth_max', action="store", type=float, default = None)
-parser.add_argument('-vert_file', help='input file with vertical coordinates', dest='vert_file', action="store")
 args = parser.parse_args()
 
 if not (args.inf):
@@ -153,7 +152,6 @@ def extract(inf, variable, time, vert):
      except:
          print "no time var?"
          ot = []
-     
      return ncvar, ot
 
 def extract_vertical(inf, variable, time):
@@ -219,32 +217,6 @@ def get_line(x1, y1, x2, y2):
     return points
 
 #taken from here: Trond Kristiansen https://github.com/trondkr/romstools/tree/master/VolumeFlux
-def z_r(index,zeta,h,s_rho, hc, Cs_r,N, Vtransform):
-    z_r = zeros((int(N)))
-    if Vtransform == 2 or Vtransform == 4:
-        for k in range(N):
-            z0 = (hc * s_rho[k] + h[index]*Cs_r[k])/(hc + h[index])
-            z_r[k]  = zeta[index] + (zeta[index] + h[index])*z0
-    elif Vtransform == 1:
-        for k in range(N):
-            z0 = hc * s_rho[k] + (h[index] - hc) * Cs_r[k]
-            z_r[k] = z0 + zeta[index] * (1.0 + z0/h[index])
-        
-    return z_r
-
-
-def z_w(index,zeta,h,s_w, hc, Cs_w,Np, Vtransform):
-    z_w = zeros((int(Np)))
-    if Vtransform == 2 or Vtransform == 4:
-        for k in range(Np):
-            z0 = (hc * s_w[k] + h[index]*Cs_w[k])/(hc + h[index])
-            z_w[k]  = zeta[index] + (zeta[index] + h[index])*z0
-    elif Vtransform == 1:
-        for k in range(Np):
-            z0 = hc * s_w[k] + (h[index] - hc) * Cs_w[k]
-            z_w[k] = z0 + zeta[index] * (1.0 + z0/h[index])
-    return z_w
-
 
 
 #extract data from netcdf
@@ -252,51 +224,19 @@ f= Dataset(args.inf)
 
 meta = extract(f, args.variable, args.time, args.vert)
 meta_trans = extract_vertical(f, args.variable, args.time)[0]
-if args.vert_file:
-    vert_file = Dataset(args.vert_file)
-    ze =  extract(f, "zeta", args.time, args.vert)[0]
-    zeta = ma.masked_outside(ze, -1e+36,1e+36)
-    mask_rho =  extract(vert_file, "mask_rho", args.time, args.vert)[0]
 
-
-    Cs_r = extract_vert(vert_file, 'Cs_r')
-    s_rho = extract_vert(vert_file, 's_rho')
-    Cs_w = extract_vert(vert_file, 'Cs_w')
-    s_w = extract_vert(vert_file, 's_w')
-    Vtransform = extract_vert(vert_file, 'Vtransform')
-#    Vstretching = extract_vert(args.inf, 'Vstretching')
-    N = len(s_rho)
-    Np = len(s_w)
-    print Np, "Np", N, "N"
-    hc= extract_vert(vert_file, 'hc')
-#print Vtransform, Vstretching, N,Tcline, hc, theta_s, theta_b
-    h_m =  extract(vert_file, "h", args.time, args.vert)[0]
-    h = ma.masked_outside(h_m, -1e+36,1e+36)
-    lat, lon = extract_lat_lon(vert_file)
-    vert_file.close()
-else:
-    ze =  extract(f, "zeta", args.time, args.vert)[0]
-    mask_rho =  extract(f, "mask_rho", args.time, args.vert)[0]
-    zeta = ma.masked_outside(ze, -1e+36,1e+36)
-    Cs_r = extract_vert(f, 'Cs_r')
-    s_rho = extract_vert(f, 's_rho')
-    Cs_w = extract_vert(f, 'Cs_w')
-    s_w = extract_vert(f, 's_w')
-    Vtransform = extract_vert(f, 'Vtransform')
-#Vstretching = extract_vert(args.inf, 'Vstretching')
-    N = len(s_rho)
-    Np = len(s_w)
-    print Np, "Np", N, "N"
-#Tcline = extract_vert(args.inf, 'Tcline')
-#theta_s = extract_vert(args.inf, 'theta_s')
-#theta_b = extract_vert(args.inf, 'theta_b')
-    hc= extract_vert(f, 'hc')
-#print Vtransform, Vstretching, N,Tcline, hc, theta_s, theta_b
-    h_m =  extract(f, "h", args.time, args.vert)[0]
-    h = ma.masked_outside(h_m, -1e+36,1e+36)
-    lat, lon = extract_lat_lon(f)
+depth_conts =  f.variables["deptht"][:]
+print depth_conts.shape
+depth = np.zeros((depth_conts.shape[0],meta[0].shape[-2],meta[0].shape[-1]))
+print depth.shape, meta[0].shape
+depth.T[:]=depth_conts
+#print depth
 f.close()
 
+f = Dataset("/home/mitya/models/NorROMS/Apps/Common/Grid/arctic4km_grd.nc")
+mask_rho =  extract(f, "mask_rho", args.time, args.vert)[0]
+lat, lon = extract_lat_lon(f)
+f.close()
 
 ncvar = meta[0]
 fillval = 1e+36
@@ -330,18 +270,15 @@ xs,ys=[],[]
 for line in file:
     i =line.replace("(","").replace(")","").replace(","," ")
     print i.split()
-    try:
-        xs.append(int(i.split()[0]))
-        ys.append(int(i.split()[1]))
-    except:
-        pass
+    xs.append(int(i.split()[0]))
+    ys.append(int(i.split()[1]))
 file.close()
     
 if len(xs) > 1:
 
     for i in range(0,len(xs)-1):
         points=get_line(int(round(xs[i])), int(round(ys[i])), int(round(xs[i+1])),int(round(ys[i+1])))
-                    #One segment                    
+        #One segment                    
         for j in points:
             if len(line_points)> 0 and line_points[-1]==j:
                 pass
@@ -351,11 +288,15 @@ if len(xs) > 1:
                 lx.append(j[0])
                 ly.append(j[1])                    
                 dz=[]
-                z_dict[str(len(line_points)-1)]= z_w((j[1],j[0]),zeta, h, s_w,hc, Cs_w,Np, Vtransform)
+                z_dict[str(len(line_points)-1)]= -depth[:,j[1],j[0]]
                 var_dict[str(len(line_points)-1)] = mx_trans[:,j[1],j[0]]
-                zr_dict[str(len(line_points)-1)] =z_r((j[1],j[0]),zeta, h, s_rho,hc, Cs_r,N,Vtransform)
-                dy.append(min(np.diff(z_dict[str(len(line_points)-1)])))
-                column.append(z_w((j[1],j[0]),zeta, h, s_w,hc, Cs_w,Np, Vtransform)[Np-1]+h[j[1],j[0]])
+         #       zr_dict[str(len(line_points)-1)] =z_r((j[1],j[0]),zeta, h, s_rho,hc, Cs_r,N,Vtransform)
+#                print np.diff(z_dict[str(len(line_points)-1)])
+#                print min(-(np.diff(z_dict[str(len(line_points)-1)])))
+                             
+                dy.append(min(-np.diff(z_dict[str(len(line_points)-1)])))
+                #print dy
+ #               column.append(z_w((j[1],j[0]),zeta, h, s_w,hc, Cs_w,Np, Vtransform)[Np-1]+h[j[1],j[0]])
                 lat_vert.append(lat[j[1],j[0]])
                 lon_vert.append(lon[j[1],j[0]])
                 
@@ -378,15 +319,19 @@ else:
                 #all segments are defined, Define mesh
 res=args.res
 dy = np.asarray(dy)
-dy = dy[~numpy.isnan(dy)]
+#dy = dy[~numpy.isnan(dy)]
 res=args.res
 if len(dy)>0:
+    print 
     yincr= min(dy)/res
+    print yincr
                 #dep =int(round(res*abs(max(column))/min(dy)))                                                                                                                                                   
-    column = np.asarray(column)
-    column = column[~numpy.isnan(column)]
-    max_depth = max(column)
-    min_depth = 0
+#    column = np.asarray(z_dict)
+    #print column
+#    column = column[~numpy.isnan(column)]
+    max_depth = abs(np.min(-depth))
+    min_depth = abs(np.max(-depth))
+    print max_depth, min_depth, ",axmin depth"
     if args.depth_max !=None:
         if max_depth > args.depth_max:
             max_depth = args.depth_max
@@ -402,6 +347,7 @@ if len(dy)>0:
     else:
         pass
     dep =int(abs(max_depth-min_depth)/yincr)
+    print "resolution", dep
     
 else:
     yincr=0.1
@@ -409,7 +355,7 @@ else:
 
 #creating mesh - linear interpolaton vertically
 mesh_np = np.zeros((dep+10,counter+2))
-mesh_np[:]=1e+37
+mesh_np[:]=1e-37
 
 if args.npinter=="yes":
     fnoutcollector=[]
@@ -419,10 +365,15 @@ if args.npinter=="yes":
 
         if mask_rho[ly[i],lx[i]]==1:
             counter=0
-            xp = zr_dict[str(i)]
-            yp = var_dict[str(i)]
-            depth_max = abs(z_dict[str(i)][0])
-            depth_min = 0
+            xp = z_dict[str(i)][::-1]
+            print xp
+            
+            yp = var_dict[str(i)][::-1]
+#            yp_nonan = np.asarray(yp)
+#            yp_nonan = yp[~yp.mask]
+#            print yp_nonan.shape, yp.shape
+            depth_max = abs(z_dict[str(i)][-1])
+            depth_min = abs(z_dict[str(i)][0])
             fn = "in"
             sn = "in"
             print depth_max, depth_min, fn
@@ -432,19 +383,19 @@ if args.npinter=="yes":
                         print "wrong range"
                         exit
                     else:
-                        if args.depth_min > abs(z_dict[str(i)][0]):
+                        if args.depth_min > depth_max:
                             fn = "out"
                             fnoutcollector.append("out")
                         else:
                             depth_min = args.depth_min
                         
-                        if args.depth_max > abs(z_dict[str(i)][0]):
+                        if args.depth_max > depth_max:
                             pass
                         else:
                             depth_max = args.depth_max
                 else:         
                     if args.depth_min != None:
-                        if args.depth_min > abs(z_dict[str(i)][0]):
+                        if args.depth_min > depth_max:
                             sn = "out"
                             snoutcollector.append("out")
                         else:
@@ -453,7 +404,7 @@ if args.npinter=="yes":
                         pass
                 
                     if args.depth_max != None: 
-                        if args.depth_max > abs(z_dict[str(i)][0]):
+                        if args.depth_max > depth_max:
                             pass
                         else:
                             depth_max = args.depth_max
@@ -466,7 +417,9 @@ if args.npinter=="yes":
                 pass
             else:
                 xvals = np.linspace(-depth_max, -depth_min, int(abs(depth_max-depth_min)/yincr))
+                
                 yinterp = np.interp(xvals, np.asarray(xp), np.asarray(yp))
+
                 var_int = yinterp[::-1] 
                 for l in var_int:
                     mesh_np[counter,i]=l
@@ -477,44 +430,6 @@ if args.npinter=="yes":
   
 print len(fnoutcollector),len(snoutcollector), len(line_points)
 
-
-
-if args.extras=="yes":
-   # fig_line, ax_line = plt.subplots()
-    fig_h, ax_h= plt.subplots()
-    x_tick=[]
-    x_label=[]
-    if len(vert) > 1:
-        for v in vert:
-            x_tick.append(v[0])
-            x_label.append('('+str(int(round(v[1])))+','+str(int(round(v[2])))+')')
-    else:
-        pass
-    
-    #ax_line.set_xticks(x_tick)
-    #ax_line.set_xticklabels(x_label)
-    #ax_line.xaxis.grid(True)
-    #ax_line.yaxis.grid(True)
-    #for i in range(Np-1):
-    #    plt.plot(absx,var_dict[str(i)], color="b")
-    #plt.title(args.variable+' '+ date_time(meta[1][args.time]))
-
-
-
-    plt.xticks(rotation=30)
-    ax_h.set_xticks(x_tick)
-    ax_h.set_xticklabels(x_label)
-    ax_h.xaxis.grid(True)
-    ax_h.yaxis.grid(True)
-    ax_h.axis([min(absx)-(max(absx)-min(absx))/20., max(absx)+(max(absx)-min(absx))/20., -int(max(column)),0])
-    for k in range(Np):
-        sigma_level = []
-        for l in range(len(line_points)):
-            sigma_level.append(z_dict[str(l)][k])
-        plt.plot(absx,sigma_level, color="r")
-    plt.title("sigma-layers")    
-else:
-    pass
 
 
 y_tick = []
@@ -550,7 +465,7 @@ ax_mesh_np.yaxis.grid(True)
 plt.xticks(rotation=30)
 ax_mesh_np = plt.gca()
 ax_mesh_np.invert_yaxis()
-mesh_masked = ma.masked_outside(mesh_np, -1e+36,1e+36)
+mesh_masked = ma.masked_outside(mesh_np, -1e+30,1e+30)
 if args.contourf=="yes":
     pm=plt.contourf(mesh_masked, cmap=cmap);plt.colorbar()           
 else:
@@ -561,8 +476,8 @@ plt.axis('tight')
 
 #line plot
 fig_map, ax_map = plt.subplots()
-p=plt.imshow(mx[int(float(args.yzoom.split(':')[0])*mx.shape[0]/100.):int(float(args.yzoom.split(':')[1])*mx.shape[0]/100.), int(float(args.xzoom.split(':')[0])*mx.shape[1]/100.):int(float(args.xzoom.split(':')[1])*mx.shape[1]/100.)], cmap=cmap, origin='lower', interpolation='nearest');plt.colorbar()     
-#p=plt.pcolormesh(mx[int(float(args.yzoom.split(':')[0])*mx.shape[0]/100.):int(float(args.yzoom.split(':')[1])*mx.shape[0]/100.), int(float(args.xzoom.split(':')[0])*mx.shape[1]/100.):int(float(args.xzoom.split(':')[1])*mx.shape[1]/100.)], cmap=cmap);plt.colorbar()     
+#p=plt.imshow(mx[int(float(args.yzoom.split(':')[0])*mx.shape[0]/100.):int(float(args.yzoom.split(':')[1])*mx.shape[0]/100.), int(float(args.xzoom.split(':')[0])*mx.shape[1]/100.):int(float(args.xzoom.split(':')[1])*mx.shape[1]/100.)], cmap=cmap, origin='lower', interpolation='nearest');plt.colorbar()     
+p=plt.pcolormesh(mx[int(float(args.yzoom.split(':')[0])*mx.shape[0]/100.):int(float(args.yzoom.split(':')[1])*mx.shape[0]/100.), int(float(args.xzoom.split(':')[0])*mx.shape[1]/100.):int(float(args.xzoom.split(':')[1])*mx.shape[1]/100.)], cmap=cmap);plt.colorbar()     
 if args.var_min or args.var_max:
      if args.var_min and args.var_max:
           if args.var_min < args.var_max:

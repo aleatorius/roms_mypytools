@@ -27,6 +27,7 @@ parser.add_argument('--xzoom', help='zoom along x(?) direction, range is defined
 parser.add_argument('--yzoom', help='zoom along y(?) direction, range is defined in percents', dest ='yzoom', action="store",  default='0:100')
 parser.add_argument('--var_min', help='minimum value of variable', dest ='var_min', action="store", type=float, default = None)
 parser.add_argument('--var_max', help='minimum value of variable', dest ='var_max', action="store", type=float, default = None)
+parser.add_argument('-vert_file', help='input file with vertical coordinates', dest='vert_file', action="store")
 args = parser.parse_args()
 
 if not (args.inf):
@@ -142,7 +143,16 @@ def extract(inf, variable, time, vert):
           print_list(f.variables.keys())          
           f.close()
           sys.exit()
-     ot = unpack(f.variables[args.time_rec])
+     
+     try:
+         ot = unpack(f.variables[args.time_rec])
+     except:
+         try:
+             ot = unpack(f.variables[[s for s in f.dimensions.keys() if "time" in s][0]])
+         except:
+             print "no time var?"
+             ot = []
+     
      #f.close()
      return ncvar, ot
 
@@ -156,7 +166,14 @@ def extract_vertical(inf, variable, time):
           print_list(f.variables.keys())          
           #f.close()
           sys.exit()
-     ot = unpack(f.variables[args.time_rec])
+     try:
+         ot = unpack(f.variables[args.time_rec])
+     except:
+         try:
+             ot = unpack(f.variables[[s for s in f.dimensions.keys() if "time" in s][0]])
+         except:
+             print "no time var?"
+             ot = []
      #f.close()
      return ncvar, ot
 # Bresenham's line algorithm (somebody' python implementation from the web)
@@ -227,27 +244,48 @@ f = Dataset(args.inf)
 
 meta = extract(f, args.variable, args.time, args.vert)
 meta_trans = extract_vertical(f, args.variable, args.time)[0]
-ze =  extract(f, "zeta", args.time, args.vert)[0]
-mask_rho =  extract(f, "mask_rho", args.time, args.vert)[0]
-zeta = ma.masked_outside(ze, -1e+36,1e+36)
-Cs_r = extract_vert(f, 'Cs_r')
-s_rho = extract_vert(f, 's_rho')
-Cs_w = extract_vert(f, 'Cs_w')
-s_w = extract_vert(f, 's_w')
-Vtransform = extract_vert(f, 'Vtransform')
-print "Vtransform", Vtransform
-Vstretching = extract_vert(f, 'Vstretching')
-N = len(s_rho)
-Np = len(s_w)
-print Np, "Np", N, "N"
+if args.vert_file:
+    vert_file = Dataset(args.vert_file)
+    ze =  extract(vert_file, "zeta", args.time, args.vert)[0]
+    mask_rho =  extract(vert_file, "mask_rho", args.time, args.vert)[0]
+    zeta = ma.masked_outside(ze, -1e+36,1e+36)
+    Cs_r = extract_vert(vert_file, 'Cs_r')
+    s_rho = extract_vert(vert_file, 's_rho')
+    Cs_w = extract_vert(vert_file, 'Cs_w')
+    s_w = extract_vert(vert_file, 's_w')
+    Vtransform = extract_vert(vert_file, 'Vtransform')
+#    Vstretching = extract_vert(args.inf, 'Vstretching')
+    N = len(s_rho)
+    Np = len(s_w)
+    print Np, "Np", N, "N"
+    hc= extract_vert(vert_file, 'hc')
+#print Vtransform, Vstretching, N,Tcline, hc, theta_s, theta_b
+    h_m =  extract(vert_file, "h", args.time, args.vert)[0]
+    h = ma.masked_outside(h_m, -1e+36,1e+36)
+    lat, lon = extract_lat_lon(vert_file)
+    vert_file.close()
+else:
+    ze =  extract(f, "zeta", args.time, args.vert)[0]
+    mask_rho =  extract(f, "mask_rho", args.time, args.vert)[0]
+    zeta = ma.masked_outside(ze, -1e+36,1e+36)
+    Cs_r = extract_vert(f, 'Cs_r')
+    s_rho = extract_vert(f, 's_rho')
+    Cs_w = extract_vert(f, 'Cs_w')
+    s_w = extract_vert(f, 's_w')
+    Vtransform = extract_vert(f, 'Vtransform')
+    print "Vtransform", Vtransform
+    Vstretching = extract_vert(f, 'Vstretching')
+    N = len(s_rho)
+    Np = len(s_w)
+    print Np, "Np", N, "N"
 #Tcline = extract_vert(args.inf, 'Tcline')
 #theta_s = extract_vert(args.inf, 'theta_s')
 #theta_b = extract_vert(args.inf, 'theta_b')
-hc= extract_vert(f, 'hc')
+    hc= extract_vert(f, 'hc')
 #print Vtransform, Vstretching, N,Tcline, hc, theta_s, theta_b
-h_m =  extract(f, "h", args.time, args.vert)[0]
-h = ma.masked_outside(h_m, -1e+36,1e+36)
-lat, lon = extract_lat_lon(f)
+    h_m =  extract(f, "h", args.time, args.vert)[0]
+    h = ma.masked_outside(h_m, -1e+36,1e+36)
+    lat, lon = extract_lat_lon(f)
 
 f.close()
 

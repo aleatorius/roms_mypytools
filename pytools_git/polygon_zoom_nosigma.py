@@ -14,24 +14,14 @@ from matplotlib.path import Path
 import matplotlib.pyplot as plt
 from pylab import *
 from matplotlib import colors, cm
-
-        
-__author__='Dmitry Shcherbin'
-__email__='dmitry.shcherbin@gmail.com'
+import z_coord
+import vert_nosigma as vert_func
 
 parser = argparse.ArgumentParser(
-description='polygon zoom', 
-usage='python polygon_zoom.py -i /global/work/jsk/S800/norseas_800m_avg.nc_2006051212 -v temp --pout foo --vert 0 --time -1'
+description='polygon zoom'
 )
 
-parser.add_argument(
-'--mask', 
-help='rho mask', 
-dest='mask',
-choices=("yes","no"), 
-action="store", 
-default="no"
-)
+
 parser.add_argument(
 '--ref_datetime', 
 help='reference date time: 1970-01-01 00:00:00', 
@@ -55,20 +45,19 @@ dest='inf',
 action="store"
 )
 parser.add_argument(
+'-o', 
+help='output file', 
+dest='output', 
+action="store",
+default="output"
+)
+parser.add_argument(
 '--pout', 
 help='output polygon file', 
 dest='pout', 
 action="store",
 default=None
 )
-parser.add_argument(
-'--m', 
-help='stations or moorings', 
-dest='moor', 
-action="store",
-default=None
-)
-
 parser.add_argument(
 '--pin', 
 help='input polygon file', 
@@ -89,6 +78,14 @@ dest='time_f',
 action="store",
 choices=("s","d"), 
 default="s"
+)
+parser.add_argument(
+'-graphics', 
+help='graphics yes or no', 
+dest='graphics', 
+action="store",
+choices=("yes","no"), 
+default="yes"
 )
 parser.add_argument(
 '--time_rec', 
@@ -134,6 +131,17 @@ dest ='xrange',
 action="store",  
 default=None
 )
+
+parser.add_argument(
+'-depth', 
+help='depth', 
+dest ='depth', 
+action="store",  
+default=None,
+nargs=2,
+type=float
+)
+
 parser.add_argument(
 '--yrange', 
 help='zoom along y direction', 
@@ -157,7 +165,6 @@ action="store",
 type=float, 
 default = None
 )
-
 
 args = parser.parse_args()
 
@@ -357,8 +364,7 @@ def var_to_polygon(mx,vertices,lx,ly):
     print minx,maxx, miny,maxy
     mx_slice = mx[(miny):(maxy+1), (minx):(maxx+1)]
     for index, val in np.ndenumerate(mx_slice):
-        # polygon mask
-        if path.contains_point(index, radius=1.0)==1:
+        if path.contains_point(index)==1:
             mask_polygon[index]=1
         else:
             pass
@@ -434,13 +440,14 @@ def plot_mesh_and_line(mx_slice_masked,mx_slice_out,lat,lon,absx,var_line,lx,ly,
     else:
         slice_mesh=ax_zoom.pcolormesh(mx_slice_masked, cmap=cmap_zoom)
         slice_out=ax_zoom.pcolormesh(mx_slice_out, cmap=cmap_out, vmin=np.amin(mx_slice_masked), vmax=np.amax(mx_slice_masked))
-        ax_zoom.set_title(args.variable+' '+ date_time(time))
+#        ax_zoom.set_title(args.variable+' '+ date_time(time)+'\n '+str(np.sum(mx_slice_masked)/ma.count_masked(mx_slice_masked)))
+        ax_zoom.set_title(args.variable+' '+ date_time(time)+'\n '+str(mx_slice_masked.mean()))
     for vert in vertices:
         txt = plt.text((vert[0])-min(np.asarray(lx)), (vert[1])-min(np.asarray(ly)), "("+str('%.1f' %  lat[(int(vert[1]),int(vert[0]))])+","+str('%.1f' % lon[(int(vert[1]),int(vert[0]))])+")", fontsize=8)
         txt.set_bbox(dict(color='white', alpha=0.5, edgecolor='red'))
 
     plt.axis('tight')
-    # info at polygon vertices 
+                # info at polygon vertices 
     box = ax_zoom.get_position()
     ax_zoom.set_position([box.x0*1.05, box.y0, box.width, box.height])
     axColor = plt.axes([box.x0 + box.width * 1.16, box.y0, 0.01, box.height])
@@ -450,7 +457,17 @@ def plot_mesh_and_line(mx_slice_masked,mx_slice_out,lat,lon,absx,var_line,lx,ly,
 
     return True
 
-
+def z_w_a(zeta,h,s_w, hc, Cs_w,Np, Vtransform):
+    z_w = zeros((int(Np),h.shape[0],h.shape[1]))
+    if Vtransform == 2 or Vtransform == 4:
+        for k in range(Np):
+            z0 = (hc * s_w[k]*np.ones(h.shape) + h*Cs_w[k])/(hc + h)
+            z_w[k]  = zeta + (zeta + h)*z0
+    elif Vtransform == 1:
+        for k in range(Np):
+            z0 = hc * s_w[k]*np.ones(h.shape) + (h - hc*np.ones(h.shape)) * Cs_w[k]
+            z_w[k] = z0 + zeta * (np.ones(h.shape) + z0/h)
+    return z_w
 
 
 #event handler - original sample is taken from matplotlib examples (LineBuilder event handler)
@@ -512,58 +529,48 @@ class LineBuilder:
             
         if event.dblclick ==  True:
             print "double click detected"
-            self.line.figure.canvas.mpl_disconnect(self.cid)
+            line.figure.canvas.mpl_disconnect(self.cid)
             exit()
-
-
-
-
-
 
 def main():
     #extract data from netcdf
-    if args.moor:
-        import pyproj
-        from pyproj import Proj
-        pr = Proj(proj='stere', R=6371000.0, lat_0=90, lat_ts=60.0, x_0=4180000.0, y_0=2570000.0, lon_0=58.0)
-        moor = open(args.moor, "r")
-        moor_x, moor_y, moor_name = [],[],[]
-        for i in moor.readlines():
-            line = i.replace(",",".").split()
-            try:
-                x= float(line[0])+float(line[1])/60.
-                y =float(line[2])+float(line[3])/60.
-                moor_x.append(int(np.array(pr(y,x))[0]/4000.))
-                moor_y.append(int(np.array(pr(y,x))[1]/4000.))
-                moor_name.append(line[-1])
-            except:
-                pass
-        print moor_x
-        print moor_y
-    
-
-
     f = Dataset(args.inf)
-    if args.mask=="yes":
-        try:
-            mask_rho = extract(f,"mask_rho")
-        except ValueError as e:
-            print e.args, "mask is to be turned off"
-            args.mask="no"
-            pass
-    else:
-        pass
 
     try:
-        ncvar = extract(f, args.variable, args.time, args.vert)
+        mask_rho = extract(f,"mask_rho")
     except ValueError as e:
         print e.args
         sys.exit()
-    if size(ncvar.shape) != 2:
-        print "ERROR: cannot get a 2d mesh from: ", args.variable,", quitting"
+
+    try:
+        meta_trans = extract(f, args.variable, args.time)
+    except ValueError as e:
+        print e.args
+        sys.exit()
+
+    if size(meta_trans.shape) != 3:
+        print "ERROR: not a 3d variable: ", args.variable,", quitting"
         sys.exit()
     else:
         pass
+    try:
+        zeta = ma.masked_outside(extract(f, "zeta", args.time), -1e+36,1e+36)
+        Cs_r = extract(f, 'Cs_r')
+        s_rho = extract(f, 's_rho')
+        Cs_w = extract(f, 'Cs_w')
+        s_w = extract(f, 's_w')
+        Vtransform = extract(f, 'Vtransform')
+        Vstretching = extract(f, 'Vstretching')
+        N = len(s_rho)
+        Np = len(s_w)
+        print Np, "Np", N, "N"
+        hc= extract(f, 'hc')
+        h = ma.masked_outside(extract(f, "h"), -1e+36,1e+36)
+    except:
+        print "cannot read a variable"
+
+
+
 
     times = (args.time_rec, "time", "clim_time", "bry_time")
     result = False
@@ -583,11 +590,36 @@ def main():
         current_time = np.zeros(int(args.time)+1)
     else:
         pass
+    print current_time, "time"
 
-    if args.mask=="no":
-        pass
+
+    
+    if args.depth==None:
+        ncvar = ma.masked_where(mask_rho==0,np.sum(np.diff(z_w_a(zeta, h, s_w,hc, Cs_w,Np,Vtransform), axis=0)*meta_trans, axis=0))
     else:
-        ncvar = ma.masked_where(mask_rho==0, ncvar)
+        theta_si=6.0; theta_bi=0.1; Tclinei=100
+        Vtransformi=2; Vstretchingi=2
+        Ni = 35
+        No = 100
+        print args.depth, args.depth[0], args.depth[1]
+        depth = np.linspace(args.depth[0], args.depth[1], No, endpoint=True)[::-1]
+        print depth.shape, "depth shape"
+        print depth
+        z_ro= np.zeros((No,h.shape[0],h.shape[1]))
+        print z_ro.shape
+        z_ro.T[:]=-depth
+        field_tr = np.transpose(meta_trans, (1,2,0))
+        z_ro_tran= np.transpose(z_ro, (1,2,0))
+        print z_ro_tran[200,100], "z_ro"
+        z_ri = z_coord.spec_vert_grid(Ni,h,zeta,Tclinei,theta_bi,theta_si,Vtransformi,Vstretchingi,[zeta.shape[0],zeta.shape[1]])
+        print z_ri[700,1100], "z_ri"
+        undef = float(1e+37)
+        array_out = vert_func.vert_int(field_tr,z_ri,z_ro_tran,undef,mask_rho,mask_rho,[mask_rho.shape[1],mask_rho.shape[0],Ni,No])
+        print array_out.shape, "array out shape"
+        ncvar = ma.masked_outside(np.sum(array_out[:,:,:],axis=2)/No, -1e+30,1e+30)
+   # except:
+   #     print "cannot integrate"
+   #     sys.exit()
 
     coords = (("lat_rho","lon_rho"),("lat", "lon"))
     result = False
@@ -598,21 +630,18 @@ def main():
             result = True
             break
         except ValueError as e:
+            #e = sys.exc_info()
             print e.args
+            #print "key error, trying another name for time record"
             continue
     print result
     if result == False:
         print "there are no coordinates with names", coords
         lat_meta, lon_meta=np.zeros(ncvar.shape), np.zeros(ncvar.shape)
 
-
     f.close()
 
-
-
-
     cmap=plt.cm.spectral
-
     #either new plot or from txt polygon
     if args.pin == None:
         if args.xrange != None or args.yrange != None :
@@ -634,7 +663,6 @@ def main():
 
         x_0 = int(float(x_range.split(':')[0]))
         y_0 = int(float(y_range.split(':')[0]))
-        print x_0, y_0
         lat = lat_meta[int(float(y_range.split(':')[0])):int(float(y_range.split(':')[1])), int(float(x_range.split(':')[0])):int(float(x_range.split(':')[1]))]
         lon = lon_meta[int(float(y_range.split(':')[0])):int(float(y_range.split(':')[1])), int(float(x_range.split(':')[0])):int(float(x_range.split(':')[1]))]
 
@@ -642,49 +670,9 @@ def main():
         mx = ma.masked_outside(ncvar, -fillval,fillval)[int(float(y_range.split(':')[0])):int(float(y_range.split(':')[1])), int(float(x_range.split(':')[0])):int(float(x_range.split(':')[1]))]
         fig_main, ax_main = plt.subplots()
 
-        #main plot
+        # main plot
         try:
             p=plt.imshow(mx, cmap=cmap, origin='lower', interpolation='nearest');plt.colorbar()     
-            if args.moor:
-                moor_x = np.array(moor_x)
-                moor_y = np.array(moor_y)
-                masking = np.ones(np.shape(moor_x),  dtype=np.bool)
-                if args.xrange:
-                    print args.xrange.split(":")[0]
-                    moor_x = np.array(moor_x) - int(args.xrange.split(":")[0])
-                    for i,j in enumerate(moor_x):
-                        if j > int(args.xrange.split(":")[1])- int(args.xrange.split(":")[0]):
-                            print i,j, "out of range!"
-                            masking[i] = False
-
-                if args.yrange:
-                    print args.yrange.split(":")[0]
-                    moor_y = np.array(moor_y) - int(args.yrange.split(":")[0])
-                    print int(args.yrange.split(":")[1])- int(args.yrange.split(":")[0]), "length of yrange"
-
-                    for i,j in enumerate(moor_y):
-                        if j > int(args.yrange.split(":")[1])- int(args.yrange.split(":")[0]):
-                            print i,j, "out of range!"
-                            masking[i] = False
-                    
-#                            moor_x=np.delete(moor_x,0,i)
-#                            moor_x=np.delete(moor_x,0,i)
-                print masking
-                moor_name_masked = []
-                for index,name in enumerate(moor_name):
-                    if masking[index]==True:
-                        moor_name_masked.append(name)
-                print moor_name_masked                    
-                moor_x = moor_x[masking]
-                moor_y = moor_y[masking]
-#                    print moor_name
-#                    moor_name = ma.masked_where(masking==False, moor_name)
-#                    print moor_name
-
-                ax_main.plot(moor_x,moor_y,'ro', markersize=5)
-                for index, name in enumerate(moor_name_masked):
-                    txt = plt.text(moor_x[index]+5, moor_y[index]+5, str(moor_name_masked[index]), fontsize=10)
-                    txt.set_bbox(dict(color='white', alpha=0.5, edgecolor='red'))
         except ValueError:
             e = sys.exc_info()[0]
             print e
@@ -697,7 +685,7 @@ def main():
             sys.exit()
 
 
-        #format axes
+        # format axes
         if args.var_min or args.var_max:
             if args.var_min and args.var_max:
                 if args.var_min < args.var_max:
@@ -724,11 +712,12 @@ def main():
 
         plt.axis('tight')
         print date_time(current_time[args.time])
-        ax_main.set_title(args.variable+' '+ date_time(current_time[args.time]))
+        ax_main.set_title(args.variable+' '+ date_time(current_time[args.time])+'\n '+str(np.sum(mx)))
         ax = fig_main.add_subplot(111)
         line, = ax.plot([], [])  # empty line 
         linebuilder = LineBuilder(line, mx, current_time[args.time], lat, lon, x_0, y_0)
         print args.pout
+        plt.show()
     else:
         x_0, y_0 = 0,0
         lat = lat_meta
@@ -759,16 +748,27 @@ def main():
             lx, ly, vertex = polygon_points(vertices)
             absx, ncv, vert = var_to_line(mx, lat, lon, vertices,lx,ly,vertex)
             mx_slice_masked, mx_slice_out = var_to_polygon(mx,vertices,lx,ly)
-            plot = plot_mesh_and_line(mx_slice_masked,mx_slice_out,lat,lon,absx,ncv,lx,ly,x_0,y_0,vert, vertices, current_time[args.time])
-            print plot
+            if args.graphics == "yes":
+                plot = plot_mesh_and_line(mx_slice_masked,mx_slice_out,lat, lon,absx,ncv,lx,ly,x_0,y_0,vert, vertices, current_time[args.time])
+                print plot
+            else:
+                outfile=str(args.variable)+"_"+args.output               
+                if os.path.isfile(outfile):
+                    print "file does exist at this time"
+                    out_file = open(outfile, 'a')
+                else:
+                    print "no such file, creating one"
+                    out_file = open(outfile, 'w')
+
+                out_file.write(str(date_time(current_time[args.time]))+" "+str(mx_slice_masked.mean())+"\n")
+                out_file.close()
         else:
             print "just one point in the file ",args.pin
             print "provide more"
             sys.exit()
 
-    plt.show()
 
 
 
-if __name__ == "__main__":
+if __name__ == '__main__':
     main()

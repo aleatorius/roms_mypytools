@@ -54,6 +54,14 @@ action="store",
 default="no"
 )
 parser.add_argument(
+'--array', 
+help='array or loop', 
+dest='array',
+choices=("yes","no"), 
+action="store", 
+default="no"
+)
+parser.add_argument(
 '--res', 
 help='resolution, fraction of minimum distance between layers', 
 dest='res', 
@@ -305,10 +313,37 @@ def extract_vertical(inf, variable, time):
          pass
      return ncvar, ot
 
+
+#def z_r(index,zeta,h,s_rho, hc, Cs_r,N):
+#    z_r = zeros((int(N)))
+#    for k in range(N):
+        #print k
+        #print h[index]
+#        z0 = (hc * s_rho[k] + h[index]*Cs_r[k])/(hc + h[index])
+#        z_r[k]  = zeta[index] + (zeta[index] + h[index])*z0
+#    return z_r
+
+
+
+
+def z_w_a(zeta,h,s_w, hc, Cs_w,Np, Vtransform):
+    z_w = zeros((int(Np),h.shape[0],h.shape[1]))
+    if Vtransform == 2 or Vtransform == 4:
+        for k in range(Np):
+            z0 = (hc * s_w[k]*np.ones(h.shape) + h*Cs_w[k])/(hc + h)
+            z_w[k]  = zeta + (zeta + h)*z0
+    elif Vtransform == 1:
+#not tested
+        for k in range(Np):
+            z0 = hc * s_w[k]*np.ones(h.shape) + (h - hc*np.ones(h.shape)) * Cs_w[k]
+            z_w[k] = z0 + zeta * (np.ones(h.shape) + z0/h)
+    return z_w
+
 #extract data from netcdf
 f = Dataset(args.inf)
-meta = extract(f, args.variable, args.time, args.vert)
+meta =  extract(f, args.variable, args.time, args.vert)
 meta_trans = extract_vertical(f, args.variable, args.time)[0]
+meta =  extract(f, args.variable, args.time, args.vert)
 ze =  extract(f, "zeta", args.time, args.vert)[0]
 mask_rho =  extract(f, "mask_rho", args.time, args.vert)[0]
 zeta = ma.masked_outside(ze, -1e+36,1e+36)
@@ -316,8 +351,8 @@ Cs_r = extract_vert(f, 'Cs_r')
 s_rho = extract_vert(f, 's_rho')
 Cs_w = extract_vert(f, 'Cs_w')
 s_w = extract_vert(f, 's_w')
-#Vtransform = extract_vert(args.inf, 'Vtransform')
-#Vstretching = extract_vert(args.inf, 'Vstretching')
+Vtransform = extract_vert(f, 'Vtransform')
+Vstretching = extract_vert(f, 'Vstretching')
 N = len(s_rho)
 Np = len(s_w)
 print Np, "Np", N, "N"
@@ -332,27 +367,6 @@ f.close()
 
 
 
-
-#def z_r(index,zeta,h,s_rho, hc, Cs_r,N):
-#    z_r = zeros((int(N)))
-#    for k in range(N):
-        #print k
-        #print h[index]
-#        z0 = (hc * s_rho[k] + h[index]*Cs_r[k])/(hc + h[index])
-#        z_r[k]  = zeta[index] + (zeta[index] + h[index])*z0
-#    return z_r
-
-
-def z_w(index,zeta,h,s_w, hc, Cs_w,Np):
-    z_w = zeros((int(Np)))
-    for k in range(Np):
-        #print k
-        #print h[index]
-        z0 = (hc * s_w[k] + h[index]*Cs_w[k])/(hc + h[index])
-        z_w[k]  = zeta[index] + (zeta[index] + h[index])*z0
-    
-    return z_w
-
 ncvar = meta[0]
 ocean_time = meta[1]
 print ocean_time
@@ -364,29 +378,24 @@ print date_time(ocean_time[args.time])
 #masked data
 mx = ma.masked_outside(ncvar, -1e+36,1e+36)
 mx_trans = ma.masked_outside(meta_trans, -1e+36,1e+36)
-print "mx_trans", mx_trans.shape
 
 
 
 
 
-mesh_integ = np.zeros(ncvar.shape)
-for j in range(ncvar.shape[0]):
-    for i in range(ncvar.shape[1]):
-        if mask_rho[j,i]==1:
-            #for k in range(Np-1):
-               # mesh_integ[j,i]=mesh_integ[j,i]+(z_w((j,i),zeta, h, s_w,hc, Cs_w,Np)[k+1]-z_w((j,i),zeta, h, s_w,hc, Cs_w,Np)[k])*mx_trans[k,j,i]
-            mesh_integ[j,i]=np.dot(np.diff(z_w((j,i),zeta, h, s_w,hc, Cs_w,Np)),mx_trans[:,j,i])
-        else:
-            mesh_integ[j,i]=np.nan
+#
+
+mesh_integ=ma.masked_where(mask_rho==0,np.sum(np.diff(z_w_a(zeta, h, s_w,hc, Cs_w,Np,Vtransform), axis=0)*meta_trans, axis=0))
+
+print Vtransform
 
 def hisdate(his):
      ref=date(1970,01,01)
      outdate = (ref + datetime.timedelta(float(int(his))/(3600*24))).strftime("%Y_%m_%d")
      return outdate
-
-mesh_masked = ma.masked_array(mesh_integ, np.isnan(mesh_integ))
-
+fillval=1e+36
+#mesh_masked = ma.masked_outside(mesh_integ,-fillval,fillval)
+mesh_masked=mesh_integ
 outfile=str(args.variable)+"_"+args.output               
 if os.path.isfile(outfile):
     print "file does exist at this time"
@@ -402,14 +411,22 @@ out_file.close()
 
 if args.graphics=="yes":
     cmap=plt.cm.spectral
-    fig_mesh, ax_mesh = plt.subplots()
+    fig_mesh = plt.figure(figsize=(22,8)) 
+    
 
+    ax_z = fig_mesh.add_subplot(121)
+    ax_mesh = fig_mesh.add_subplot(122)
 
  
     if args.contourf=="yes":
-        pm=plt.contourf(mesh_masked, cmap=cmap);plt.colorbar()           
+        pm=ax_mesh.contourf(mesh_masked, cmap=cmap)
+        pz=ax_z.contourf(ma.masked_where(mask_rho==0,z_w_a(zeta, h, s_w,hc, Cs_w,Np,Vtransform)[0]), cmap=cmap)
     else:
-        pm=plt.pcolormesh(mesh_masked, cmap=cmap);plt.colorbar()
+        pm=ax_mesh.pcolormesh(mesh_masked, cmap=cmap)
+#        pz=ax_z.pcolormesh(mesh_masked, cmap=cmap)
+        pz=ax_z.pcolormesh(ma.masked_where(mask_rho==0,np.diff(z_w_a(zeta, h, s_w,hc, Cs_w,Np,Vtransform),axis=0)[34]), cmap=cmap)
+    plt.colorbar(pm, cmap=cmap, orientation="vertical")           
+    plt.colorbar(pz, cmap=cmap, orientation="horizontal")           
     plt.title(args.variable+' '+ date_time(meta[1][args.time])+'\n '+str(np.sum(mesh_masked)))
 
     if args.var_min or args.var_max:

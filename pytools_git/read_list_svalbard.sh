@@ -6,7 +6,7 @@
 #PBS -N yoshie_data_2003_2010
 #PBS -lnodes=1:ppn=1
 #PBS -lpmem=29000MB
-#PBS -l walltime=01:59:59
+#PBS -l walltime=00:59:59
 #PBS -A nn9300k
 ##project number!
 #PBS -V
@@ -18,16 +18,16 @@ set -x
 
 datstamp=`date +%Y_%m_%d_%H_%M`
 WORK=/global/work/mitya
-pathRun=${WORK}/a4
+pathRun=${WORK}/rerun_svalbard
 exec 1>$pathRun/log_${datstamp} 2>&1
 
 
 
 #yr="1993 1994 1995 2003 2004 2010"
 #yr="2003 2004 2005 2006 2007 2008 2009 2010"
-#mon="06 07 08 09 10 11 12"
-yr="2002"
-mon="12"
+mon="01 02 03 04 05 06 07 08 09 10 11 12"
+yr="2006"
+
 
 module load nco netcdf 
 
@@ -57,7 +57,7 @@ for year in $yr; do
 	    else
 		:
 	    fi
-	done <outlist_a4
+	done <outlist_svalbard
 
 #reads from temp file
 # counter i count number of dates, just for reference
@@ -83,7 +83,7 @@ for year in $yr; do
 		    if [ ${ARRAY[0]} == "1" ]; then
 			ln -s ${arr[4]} ncoout_${month}_${year}_$j
 		    else
-			ncks -O -d ocean_time,$((${ARRAY[0]}-1)),$((${ARRAY[@]:(-1)}-1)) ${arr[4]} ncoout_${month}_${year}_$j
+			ncks -d ocean_time,$((${ARRAY[0]}-1)),$((${ARRAY[@]:(-1)}-1)) ${arr[4]} ncoout_${month}_${year}_$j
 		    fi
 		    echo $string >> $out_file
 		    ARRAY=()
@@ -99,7 +99,7 @@ for year in $yr; do
 		k+=($j)
 		echo $k
 		string="file "${arr[4]}" record "${ARRAY[0]}" "${ARRAY[@]:(-1)}
-		ncks -O -d ocean_time,$((${ARRAY[0]}-1)),$((${ARRAY[@]:(-1)}-1)) ${arr[4]} ncoout_${month}_${year}_$j
+		ncks -d ocean_time,$((${ARRAY[0]}-1)),$((${ARRAY[@]:(-1)}-1)) ${arr[4]} ncoout_${month}_${year}_$j
 		echo $string >> $out_file
 	    fi
 
@@ -120,7 +120,7 @@ for year in $yr; do
 		str=$str"ncoout_"${month}_${year}_$num" "
             done
 	    rmstr=$str
-	    str="ncra -O "$str"monthavg_"${month}_${year}".nc "
+	    str="ncra "$str"monthavg_"${month}_${year}".nc "
 	    if $str; then
 		echo "ncra is ok"
 	    else

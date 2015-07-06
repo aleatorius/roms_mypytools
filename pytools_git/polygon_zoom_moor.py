@@ -15,7 +15,6 @@ import matplotlib.pyplot as plt
 from pylab import *
 from matplotlib import colors, cm
 
-        
 __author__='Dmitry Shcherbin'
 __email__='dmitry.shcherbin@gmail.com'
 
@@ -61,14 +60,6 @@ dest='pout',
 action="store",
 default=None
 )
-parser.add_argument(
-'--m', 
-help='stations or moorings', 
-dest='moor', 
-action="store",
-default=None
-)
-
 parser.add_argument(
 '--pin', 
 help='input polygon file', 
@@ -522,27 +513,6 @@ class LineBuilder:
 
 def main():
     #extract data from netcdf
-    if args.moor:
-        import pyproj
-        from pyproj import Proj
-        pr = Proj(proj='stere', R=6371000.0, lat_0=90, lat_ts=60.0, x_0=4180000.0, y_0=2570000.0, lon_0=58.0)
-        moor = open(args.moor, "r")
-        moor_x, moor_y, moor_name = [],[],[]
-        for i in moor.readlines():
-            line = i.replace(",",".").split()
-            try:
-                x= float(line[0])+float(line[1])/60.
-                y =float(line[2])+float(line[3])/60.
-                moor_x.append(int(np.array(pr(y,x))[0]/4000.))
-                moor_y.append(int(np.array(pr(y,x))[1]/4000.))
-                moor_name.append(line[-1])
-            except:
-                pass
-        print moor_x
-        print moor_y
-    
-
-
     f = Dataset(args.inf)
     if args.mask=="yes":
         try:
@@ -645,46 +615,6 @@ def main():
         #main plot
         try:
             p=plt.imshow(mx, cmap=cmap, origin='lower', interpolation='nearest');plt.colorbar()     
-            if args.moor:
-                moor_x = np.array(moor_x)
-                moor_y = np.array(moor_y)
-                masking = np.ones(np.shape(moor_x),  dtype=np.bool)
-                if args.xrange:
-                    print args.xrange.split(":")[0]
-                    moor_x = np.array(moor_x) - int(args.xrange.split(":")[0])
-                    for i,j in enumerate(moor_x):
-                        if j > int(args.xrange.split(":")[1])- int(args.xrange.split(":")[0]):
-                            print i,j, "out of range!"
-                            masking[i] = False
-
-                if args.yrange:
-                    print args.yrange.split(":")[0]
-                    moor_y = np.array(moor_y) - int(args.yrange.split(":")[0])
-                    print int(args.yrange.split(":")[1])- int(args.yrange.split(":")[0]), "length of yrange"
-
-                    for i,j in enumerate(moor_y):
-                        if j > int(args.yrange.split(":")[1])- int(args.yrange.split(":")[0]):
-                            print i,j, "out of range!"
-                            masking[i] = False
-                    
-#                            moor_x=np.delete(moor_x,0,i)
-#                            moor_x=np.delete(moor_x,0,i)
-                print masking
-                moor_name_masked = []
-                for index,name in enumerate(moor_name):
-                    if masking[index]==True:
-                        moor_name_masked.append(name)
-                print moor_name_masked                    
-                moor_x = moor_x[masking]
-                moor_y = moor_y[masking]
-#                    print moor_name
-#                    moor_name = ma.masked_where(masking==False, moor_name)
-#                    print moor_name
-
-                ax_main.plot(moor_x,moor_y,'ro', markersize=5)
-                for index, name in enumerate(moor_name_masked):
-                    txt = plt.text(moor_x[index]+5, moor_y[index]+5, str(moor_name_masked[index]), fontsize=10)
-                    txt.set_bbox(dict(color='white', alpha=0.5, edgecolor='red'))
         except ValueError:
             e = sys.exc_info()[0]
             print e
